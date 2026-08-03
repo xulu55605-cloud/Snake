@@ -1,0 +1,21 @@
+{
+  "short_name": "贪吃蛇",
+  "name": "贪吃蛇 PWA 游戏",
+  "icons": [
+    {
+      "src": "icons/icon-192.svg",
+      "type": "image/svg+xml",
+      "sizes": "192x192"
+    },
+    {
+      "src": "icons/icon-512.svg",
+      "type": "image/svg+xml",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": "./index.html",
+  "background_color": "#ffffff",
+  "theme_color": "#0071e3",
+  "display": "standalone",
+  "orientation": "portrait"
+}

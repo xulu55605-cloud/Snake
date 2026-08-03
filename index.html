@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>贪吃蛇 PWA 版</title>
+    
+    <!-- PWA 配置文件与主题色 -->
+    <link rel="manifest" href="./manifest.json">
+    <meta name="theme-color" content="#0071e3">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" href="./icons/icon-192.svg">
+
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        body { background-color: #f0f2f5; color: #333; display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 20px; }
+        .container { background: #ffffff; padding: 28px; border-radius: 20px; box-shadow: 0 12px 36px rgba(0, 0, 0, 0.1); display: flex; flex-direction: column; align-items: center; gap: 20px; max-width: 680px; width: 100%; position: relative; }
+        h1 { font-size: 28px; font-weight: 700; color: #1d1d1f; }
+        .controls { display: flex; flex-direction: column; gap: 16px; width: 100%; }
+        .controls.hidden { display: none !important; }
+        .input-group { display: flex; flex-direction: column; gap: 8px; }
+        label { font-size: 14px; color: #6e6e73; font-weight: 600; }
+        input[type="text"] { padding: 12px 14px; border: 1px solid #d2d2d7; border-radius: 10px; font-size: 15px; outline: none; }
+        .speed-options { display: flex; gap: 12px; }
+        .speed-btn { flex: 1; padding: 10px 0; border: 1px solid #d2d2d7; background: #fff; border-radius: 10px; cursor: pointer; font-size: 15px; font-weight: 500; }
+        .speed-btn.active { background: #0071e3; color: #fff; border-color: #0071e3; }
+        .btn-group { display: flex; gap: 12px; width: 100%; }
+        .btn { flex: 1; padding: 12px; border: none; border-radius: 10px; font-size: 16px; font-weight: 600; cursor: pointer; text-align: center; }
+        .btn-start { background: #34c759; color: white; }
+        .btn-load { background: #5856d6; color: white; }
+        .btn-load:disabled { background: #c7c7cc; cursor: not-allowed; }
+        .btn-action { background: #0071e3; color: white; padding: 8px 16px; font-size: 14px; border-radius: 8px; border: none; cursor: pointer; font-weight: 600; }
+        .btn-danger { background: #ff3b30; }
+        .game-area { position: relative; display: flex; flex-direction: column; align-items: center; width: 100%; }
+        .game-header { display: flex; justify-content: space-between; align-items: center; width: 540px; margin-bottom: 12px; }
+        .score-board { font-size: 18px; font-weight: 700; color: #1d1d1f; }
+        .canvas-container { position: relative; width: 540px; height: 540px; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 16px rgba(0,0,0,0.06); }
+        canvas { background-color: #fafafa; border: 2px solid #e5e5ea; border-radius: 16px; display: block; }
+        .overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(4px); display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 16px; border-radius: 16px; z-index: 5; display: none; }
+        .leaderboard { width: 100%; border-top: 1px solid #e5e5ea; padding-top: 18px; margin-top: 4px; }
+        .leaderboard h2 { font-size: 18px; margin-bottom: 12px; color: #1d1d1f; }
+        .leaderboard-list { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+        .leaderboard-item { display: flex; justify-content: space-between; font-size: 15px; padding: 8px 14px; background: #f5f5f7; border-radius: 8px; }
+        .rank { font-weight: 700; color: #0071e3; margin-right: 10px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>贪吃蛇 PWA 版</h1>
+
+    <!-- 菜单 -->
+    <div class="controls" id="menu">
+        <div class="input-group">
+            <label for="playerName">玩家名字</label>
+            <input type="text" id="playerName" placeholder="请输入你的名字" maxlength="10">
+        </div>
+        <div class="input-group">
+            <label>速度设置</label>
+            <div class="speed-options">
+                <button class="speed-btn" data-speed="150">慢</button>
+                <button class="speed-btn active" data-speed="100">中</button>
+                <button class="speed-btn" data-speed="60">快</button>
+            </div>
+        </div>
+        <div class="btn-group">
+            <button class="btn btn-start" id="startBtn">开始新游戏</button>
+            <button class="btn btn-load" id="loadBtn" disabled>读取存档</button>
+        </div>
+    </div>
+
+    <!-- 游戏区 -->
+    <div class="game-area" id="gameArea" style="display: none;">
+        <div class="game-header">
+            <div class="score-board">玩家: <span id="displayName" style="color: #0071e3;">-</span> | 得分: <span id="currentScore">0</span></div>
+            <div class="game-action-btns">
+                <button class="btn-action" id="pauseBtn">暂停</button>
+                <button class="btn-action btn-danger" id="exitBtn">退出</button>
+            </div>
+        </div>
+        <div class="canvas-container">
+            <canvas id="gameCanvas" width="540" height="540"></canvas>
+            <div class="overlay" id="pauseOverlay">
+                <h2>游戏已暂停</h2>
+                <button class="btn-action" id="resumeBtn" style="padding: 12px 28px; font-size: 16px;">继续游戏</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 排行榜 -->
+    <div class="leaderboard">
+        <h2>🏆 历史 Top 3</h2>
+        <ul class="leaderboard-list" id="leaderboardList"></ul>
+    </div>
+</div>
+
+<script>
+    // 游戏核心 JS
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const scoreEl = document.getElementById('currentScore');
+    const displayNameEl = document.getElementById('displayName');
+    const nameInput = document.getElementById('playerName');
+    const startBtn = document.getElementById('startBtn');
+    const loadBtn = document.getElementById('loadBtn');
+    const pauseBtn = document.getElementById('pauseBtn');
+    const resumeBtn = document.getElementById('resumeBtn');
+    const exitBtn = document.getElementById('exitBtn');
+    const speedBtns = document.querySelectorAll('.speed-btn');
+    const leaderboardList = document.getElementById('leaderboardList');
+    const menuEl = document.getElementById('menu');
+    const gameAreaEl = document.getElementById('gameArea');
+    const pauseOverlay = document.getElementById('pauseOverlay');
+
+    const snakePalettes = ['#34c759', '#007aff', '#af52de', '#ff9500', '#ff2d55', '#5856d6', '#00c7be', '#ffcc00'];
+    const gridSize = 30;
+    const tileCount = canvas.width / gridSize;
+
+    let snake = [], food = { x: 0, y: 0 }, dx = gridSize, dy = 0, score = 0, gameInterval = null;
+    let speed = 100, isPaused = false, gameRunning = false, playerInitial = 'P', currentPlayerName = '', currentColorIndex = 0;
+
+    checkSavedGame();
+    updateLeaderboardUI();
+
+    speedBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            speedBtns.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            speed = parseInt(btn.dataset.speed);
+        });
+    });
+
+    startBtn.addEventListener('click', () => initAndStartGame(false));
+    loadBtn.addEventListener('click', loadSavedGame);
+    pauseBtn.addEventListener('click', togglePause);
+    resumeBtn.addEventListener('click', togglePause);
+    exitBtn.addEventListener('click', exitGame);
+    document.addEventListener('keydown', changeDirection);
+
+    function checkSavedGame() {
+        const saved = localStorage.getItem('snake_saved_game');
+        loadBtn.disabled = !saved;
+    }
+
+    function initAndStartGame(isLoaded = false) {
+        if (!isLoaded) {
+            const name = nameInput.value.trim();
+            if (!name) { alert('请输入玩家名字！'); return; }
+            currentPlayerName = name;
+            playerInitial = name.charAt(0).toUpperCase();
+
+            snake = [{ x: 5 * gridSize, y: 10 * gridSize }, { x: 4 * gridSize, y: 10 * gridSize }, { x: 3 * gridSize, y: 10 * gridSize }];
+            dx = gridSize; dy = 0; score = 0; currentColorIndex = 0;
+            spawnFood();
+        }
+
+        menuEl.classList.add('hidden');
+        gameAreaEl.style.display = 'flex';
+        displayNameEl.textContent = currentPlayerName;
+        scoreEl.textContent = score;
+        isPaused = false;
+        pauseOverlay.style.display = 'none';
+
+        if (gameInterval) clearInterval(gameInterval);
+        gameRunning = true;
+        gameInterval = setInterval(gameLoop, speed);
+        draw();
+    }
+
+    function gameLoop() {
+        if (!gameRunning || isPaused) return;
+        moveSnake();
+        if (checkCollision()) { handleGameOver(); return; }
+        draw();
+    }
+
+    function moveSnake() {
+        const head = { x: snake[0].x + dx, y: snake[0].y + dy };
+        snake.unshift(head);
+        if (head.x === food.x && head.y === food.y) {
+            score += 10;
+            scoreEl.textContent = score;
+            spawnFood();
+        } else {
+            snake.pop();
+        }
+    }
+
+    function changeDirection(e) {
+        if (!gameRunning || isPaused) return;
+        const key = e.key;
+        if ((key === 'ArrowLeft' || key === 'a') && dx === 0) { dx = -gridSize; dy = 0; }
+        else if ((key === 'ArrowUp' || key === 'w') && dy === 0) { dx = 0; dy = -gridSize; }
+        else if ((key === 'ArrowRight' || key === 'd') && dx === 0) { dx = gridSize; dy = 0; }
+        else if ((key === 'ArrowDown' || key === 's') && dy === 0) { dx = 0; dy = gridSize; }
+    }
+
+    function checkCollision() {
+        const head = snake[0];
+        if (head.x < 0 || head.x >= canvas.width || head.y < 0 || head.y >= canvas.height) return true;
+        for (let i = 1; i < snake.length; i++) {
+            if (head.x === snake[i].x && head.y === snake[i].y) return true;
+        }
+        return false;
+    }
+
+    function spawnFood() {
+        food.x = Math.floor(Math.random() * tileCount) * gridSize;
+        food.y = Math.floor(Math.random() * tileCount) * gridSize;
+    }
+
+    function draw() {
+        ctx.fillStyle = '#fafafa';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        ctx.fillStyle = '#ff3b30';
+        ctx.beginPath();
+        ctx.arc(food.x + gridSize / 2, food.y + gridSize / 2, gridSize / 2 - 3, 0, Math.PI * 2);
+        ctx.fill();
+
+        snake.forEach((segment, index) => {
+            ctx.fillStyle = index === 0 ? '#0071e3' : '#34c759';
+            ctx.fillRect(segment.x + 1, segment.y + 1, gridSize - 2, gridSize - 2);
+        });
+    }
+
+    function togglePause() {
+        if (!gameRunning) return;
+        isPaused = !isPaused;
+        pauseOverlay.style.display = isPaused ? 'flex' : 'none';
+        pauseBtn.textContent = isPaused ? '继续' : '暂停';
+    }
+
+    function handleGameOver() {
+        gameRunning = false;
+        clearInterval(gameInterval);
+        saveScore(currentPlayerName, score);
+        updateLeaderboardUI();
+
+        setTimeout(() => {
+            const shouldSave = confirm(`💥 游戏结束！${currentPlayerName} 的最终得分是: ${score} 分。\n\n是否保存本次成绩和进度作为存档？`);
+            if (shouldSave) {
+                localStorage.setItem('snake_saved_game', JSON.stringify({ snake, food, dx, dy, score, speed, currentPlayerName, playerInitial }));
+                checkSavedGame();
+                alert('存档已保存！');
+            }
+            menuEl.classList.remove('hidden');
+            gameAreaEl.style.display = 'none';
+        }, 100);
+    }
+
+    function loadSavedGame() {
+        const saved = localStorage.getItem('snake_saved_game');
+        if (!saved) return;
+        const data = JSON.parse(saved);
+        score = data.score;
+        currentPlayerName = data.currentPlayerName;
+        snake = data.snake;
+        food = data.food;
+        initAndStartGame(true);
+    }
+
+    function exitGame() {
+        if (confirm('确定退出当前游戏？未保存进度将丢失。')) {
+            gameRunning = false;
+            clearInterval(gameInterval);
+            menuEl.classList.remove('hidden');
+            gameAreaEl.style.display = 'none';
+        }
+    }
+
+    function saveScore(name, score) {
+        let scores = JSON.parse(localStorage.getItem('snake_top3')) || [];
+        scores.push({ name, score });
+        scores.sort((a, b) => b.score - a.score);
+        localStorage.setItem('snake_top3', JSON.stringify(scores.slice(0, 3)));
+    }
+
+    function updateLeaderboardUI() {
+        const scores = JSON.parse(localStorage.getItem('snake_top3')) || [];
+        leaderboardList.innerHTML = scores.length === 0 ? '<li class="leaderboard-item" style="justify-content:center;">暂无纪录</li>' : '';
+        scores.forEach((item, index) => {
+            const li = document.createElement('li');
+            li.className = 'leaderboard-item';
+            li.innerHTML = `<span><span class="rank">${index + 1}</span>${item.name}</span><strong>${item.score} 分</strong>`;
+            leaderboardList.appendChild(li);
+        });
+    }
+
+    // PWA Service Worker 自动注册脚本
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('./sw.js')
+                .then(reg => console.log('PWA ServiceWorker 注册成功！ Scope:', reg.scope))
+                .catch(err => console.error('PWA 注册失败:', err));
+        });
+    }
+</script>
+</body>
+</html>
