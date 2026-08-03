@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>贪吃蛇 PWA 终极体验版</title>
+    <title>贪吃蛇_心雨版</title>
     
     <link rel="manifest" href="./manifest.json">
     <meta name="theme-color" content="#0071e3">
@@ -48,8 +48,9 @@
         label { font-size: 13px; color: #6e6e73; font-weight: 600; }
         input[type="text"] { padding: 12px; border: 1px solid #d2d2d7; border-radius: 10px; font-size: 15px; outline: none; }
 
-        .speed-options { display: flex; gap: 8px; }
-        .speed-btn { flex: 1; padding: 10px 0; border: 1px solid #d2d2d7; background: #fff; border-radius: 10px; cursor: pointer; font-size: 14px; font-weight: 500; }
+        /* 速度按钮调精简适配 4 档 */
+        .speed-options { display: flex; gap: 6px; }
+        .speed-btn { flex: 1; padding: 8px 0; border: 1px solid #d2d2d7; background: #fff; border-radius: 10px; cursor: pointer; font-size: 13px; font-weight: 500; }
         .speed-btn.active { background: #0071e3; color: #fff; border-color: #0071e3; }
 
         .btn-group { display: flex; gap: 10px; width: 100%; }
@@ -85,7 +86,6 @@
             transition: border-color 0.3s ease;
         }
 
-        /* ✨ 5 Combo 爆光效果 */
         canvas.combo-glow {
             animation: comboPulse 0.6s ease-in-out 2;
         }
@@ -98,34 +98,49 @@
 
         .overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(4px); display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 16px; border-radius: 12px; z-index: 5; display: none; }
 
-        .virtual-dpad {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            grid-template-rows: repeat(3, 1fr);
-            gap: 6px;
-            width: 170px;
-            height: 170px;
+        /* 🕹️ 虚拟连滑控制摇杆底盘 */
+        .joystick-zone {
+            position: relative;
+            width: 180px;
+            height: 180px;
             margin-top: 10px;
-        }
-
-        .dpad-btn {
             background: #e5e5ea;
-            border: none;
-            border-radius: 12px;
-            font-size: 20px;
+            border-radius: 50%;
             display: flex;
             justify-content: center;
             align-items: center;
-            color: #1d1d1f;
-            cursor: pointer;
-            touch-action: manipulation;
+            touch-action: none;
+            box-shadow: inset 0 2px 8px rgba(0,0,0,0.1);
         }
 
-        .dpad-btn:active { background: #0071e3; color: #fff; }
-        .dpad-up { grid-column: 2; grid-row: 1; }
-        .dpad-left { grid-column: 1; grid-row: 2; }
-        .dpad-right { grid-column: 3; grid-row: 2; }
-        .dpad-down { grid-column: 2; grid-row: 3; }
+        .joystick-handle {
+            position: absolute;
+            width: 70px;
+            height: 70px;
+            background: #0071e3;
+            border-radius: 50%;
+            box-shadow: 0 4px 10px rgba(0, 113, 227, 0.4);
+            transition: transform 0.05s ease-out;
+            pointer-events: none;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #fff;
+            font-size: 20px;
+            font-weight: bold;
+        }
+
+        .joystick-arrow {
+            position: absolute;
+            font-size: 16px;
+            color: #8e8e93;
+            font-weight: bold;
+            pointer-events: none;
+        }
+        .arrow-up { top: 10px; }
+        .arrow-down { bottom: 10px; }
+        .arrow-left { left: 12px; }
+        .arrow-right { right: 12px; }
 
         .leaderboard { width: 100%; border-top: 1px solid #e5e5ea; padding-top: 12px; margin-top: 4px; }
         .leaderboard h2 { font-size: 15px; margin-bottom: 8px; color: #1d1d1f; }
@@ -167,6 +182,7 @@
         <div class="input-group">
             <label>速度设置</label>
             <div class="speed-options">
+                <button class="speed-btn" data-speed="220">极慢</button>
                 <button class="speed-btn" data-speed="150">慢</button>
                 <button class="speed-btn active" data-speed="100">中</button>
                 <button class="speed-btn" data-speed="60">快</button>
@@ -189,18 +205,21 @@
         </div>
 
         <div class="canvas-container">
-            <canvas id="gameCanvas" width="400" height="400"></canvas>
+            <!-- 🖼️ 扩展画布大小至 800x800 (原来的200%) -->
+            <canvas id="gameCanvas" width="800" height="800"></canvas>
             <div class="overlay" id="pauseOverlay">
                 <h2>游戏已暂停</h2>
                 <button class="btn-action" id="resumeBtn" style="padding: 10px 24px; font-size: 15px;">继续游戏</button>
             </div>
         </div>
 
-        <div class="virtual-dpad">
-            <button class="dpad-btn dpad-up" id="btnUp">▲</button>
-            <button class="dpad-btn dpad-left" id="btnLeft">◄</button>
-            <button class="dpad-btn dpad-right" id="btnRight">►</button>
-            <button class="dpad-btn dpad-down" id="btnDown">▼</button>
+        <!-- 🕹️ 连续拖动感应摇杆区 -->
+        <div class="joystick-zone" id="joystickZone">
+            <span class="joystick-arrow arrow-up">▲</span>
+            <span class="joystick-arrow arrow-down">▼</span>
+            <span class="joystick-arrow arrow-left">◄</span>
+            <span class="joystick-arrow arrow-right">►</span>
+            <div class="joystick-handle" id="joystickHandle">✽</div>
         </div>
     </div>
 
@@ -228,8 +247,12 @@
     const pauseOverlay = document.getElementById('pauseOverlay');
     const comboText = document.getElementById('comboText');
 
+    // 摇杆元素
+    const joystickZone = document.getElementById('joystickZone');
+    const joystickHandle = document.getElementById('joystickHandle');
+
     const gridSize = 20; 
-    const tileCount = canvas.width / gridSize;
+    const tileCount = canvas.width / gridSize; // 现在是 800 / 20 = 40 格
     const rainbowColors = ['#ff2d55', '#ff9500', '#ffcc00', '#34c759', '#007aff', '#af52de'];
     const headThemes = ['#0071e3', '#af52de', '#ff2d55', '#5856d6', '#ff9500', '#00c7be'];
 
@@ -238,7 +261,7 @@
     let playerChar = '🐍';
     let foodEatenCount = 0;
     let isComboMode = false;
-    let currentHeadColor = '#0071e3'; // 默认蛇头颜色
+    let currentHeadColor = '#0071e3';
 
     checkSavedGame();
     updateLeaderboardUI();
@@ -259,39 +282,80 @@
 
     document.addEventListener('keydown', handleKeyInput);
 
-    document.getElementById('btnUp').addEventListener('touchstart', (e) => { e.preventDefault(); setDirection(0, -gridSize); });
-    document.getElementById('btnDown').addEventListener('touchstart', (e) => { e.preventDefault(); setDirection(0, gridSize); });
-    document.getElementById('btnLeft').addEventListener('touchstart', (e) => { e.preventDefault(); setDirection(-gridSize, 0); });
-    document.getElementById('btnRight').addEventListener('touchstart', (e) => { e.preventDefault(); setDirection(gridSize, 0); });
-    
-    document.getElementById('btnUp').addEventListener('click', () => setDirection(0, -gridSize));
-    document.getElementById('btnDown').addEventListener('click', () => setDirection(0, gridSize));
-    document.getElementById('btnLeft').addEventListener('click', () => setDirection(-gridSize, 0));
-    document.getElementById('btnRight').addEventListener('click', () => setDirection(gridSize, 0));
+    // 🕹️ 核心升级：滑动连续控制方向逻辑 (连续摇杆)
+    let joystickActive = false;
+    let joystickCenterX = 0;
+    let joystickCenterY = 0;
 
-    let touchStartX = 0, touchStartY = 0;
-    canvas.addEventListener('touchstart', (e) => {
-        touchStartX = e.touches[0].clientX;
-        touchStartY = e.touches[0].clientY;
-    }, { passive: false });
-
-    canvas.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
-
-    canvas.addEventListener('touchend', (e) => {
+    function handleJoystickMove(clientX, clientY) {
         if (!gameRunning || isPaused) return;
-        let diffX = e.changedTouches[0].clientX - touchStartX;
-        let diffY = e.changedTouches[0].clientY - touchStartY;
 
-        if (Math.max(Math.abs(diffX), Math.abs(diffY)) > 20) {
-            if (Math.abs(diffX) > Math.abs(diffY)) {
-                if (diffX > 0) setDirection(gridSize, 0);
+        const deltaX = clientX - joystickCenterX;
+        const deltaY = clientY - joystickCenterY;
+        const distance = Math.hypot(deltaX, deltaY);
+        const maxRadius = 45; // 限制摇杆手柄偏离最大距离
+
+        // 移动手柄视觉反馈
+        const angle = Math.atan2(deltaY, deltaX);
+        const moveDist = Math.min(distance, maxRadius);
+        const handleX = Math.cos(angle) * moveDist;
+        const handleY = Math.sin(angle) * moveDist;
+        joystickHandle.style.transform = `translate(${handleX}px, ${handleY}px)`;
+
+        // 触发转向（设置死区 15px 防止过于敏感）
+        if (distance > 15) {
+            if (Math.abs(deltaX) > Math.abs(deltaY)) {
+                if (deltaX > 0) setDirection(gridSize, 0);
                 else setDirection(-gridSize, 0);
             } else {
-                if (diffY > 0) setDirection(0, gridSize);
+                if (deltaY > 0) setDirection(0, gridSize);
                 else setDirection(0, -gridSize);
             }
         }
+    }
+
+    function resetJoystick() {
+        joystickActive = false;
+        joystickHandle.style.transform = `translate(0px, 0px)`;
+    }
+
+    // 摇杆触摸事件绑 (Touch)
+    joystickZone.addEventListener('touchstart', (e) => {
+        joystickActive = true;
+        const rect = joystickZone.getBoundingClientRect();
+        joystickCenterX = rect.left + rect.width / 2;
+        joystickCenterY = rect.top + rect.height / 2;
+        handleJoystickMove(e.touches[0].clientX, e.touches[0].clientY);
+    }, { passive: false });
+
+    joystickZone.addEventListener('touchmove', (e) => {
+        if (!joystickActive) return;
+        e.preventDefault();
+        handleJoystickMove(e.touches[0].clientX, e.touches[0].clientY);
+    }, { passive: false });
+
+    joystickZone.addEventListener('touchend', resetJoystick);
+    joystickZone.addEventListener('touchcancel', resetJoystick);
+
+    // 摇杆鼠标事件绑定 (Mouse 兼容 PC 拖拽体验)
+    joystickZone.addEventListener('mousedown', (e) => {
+        joystickActive = true;
+        const rect = joystickZone.getBoundingClientRect();
+        joystickCenterX = rect.left + rect.width / 2;
+        joystickCenterY = rect.top + rect.height / 2;
+        handleJoystickMove(e.clientX, e.clientY);
     });
+
+    document.addEventListener('mousemove', (e) => {
+        if (joystickActive) {
+            handleJoystickMove(e.clientX, e.clientY);
+        }
+    });
+
+    document.addEventListener('mouseup', () => {
+        if (joystickActive) resetJoystick();
+    });
+
 
     function setDirection(newDx, newDy) {
         if (!gameRunning || isPaused) return;
@@ -320,7 +384,9 @@
             currentPlayerName = name;
             playerChar = Array.from(name)[0] || '🐍';
 
-            snake = [{ x: 5 * gridSize, y: 10 * gridSize }, { x: 4 * gridSize, y: 10 * gridSize }, { x: 3 * gridSize, y: 10 * gridSize }];
+            // 初始在 800x800 中心生成
+            const mid = Math.floor(tileCount / 2) * gridSize;
+            snake = [{ x: mid, y: mid }, { x: mid - gridSize, y: mid }, { x: mid - 2 * gridSize, y: mid }];
             dx = gridSize; dy = 0; score = 0; foodEatenCount = 0; currentHeadColor = '#0071e3';
             spawnFood();
         }
@@ -364,13 +430,11 @@
         }
     }
 
-    // ✨ 动效优化：触发 5 Combo 切换蛇头主题色并开启全身彩虹色
     function triggerComboEffect() {
         isComboMode = true;
         canvas.classList.add('combo-glow');
         comboText.classList.add('show');
 
-        // 随机更换蛇头颜色
         currentHeadColor = headThemes[Math.floor(Math.random() * headThemes.length)];
 
         setTimeout(() => {
@@ -405,7 +469,6 @@
 
         snake.forEach((segment, index) => {
             if (index === 0) {
-                // 蛇头颜色
                 ctx.fillStyle = currentHeadColor;
                 ctx.fillRect(segment.x + 1, segment.y + 1, gridSize - 2, gridSize - 2);
 
@@ -415,7 +478,6 @@
                 ctx.textBaseline = 'middle';
                 ctx.fillText(playerChar, segment.x + gridSize / 2, segment.y + gridSize / 2 + 1);
             } else {
-                // 蛇身绘制
                 if (isComboMode) {
                     ctx.fillStyle = rainbowColors[index % rainbowColors.length];
                 } else {
@@ -444,7 +506,7 @@
         checkSavedGame();
     }
 
-    // 💾 读档并重置蛇头到正中心
+    // 💾 读档并将蛇头部置到画布 800x800 正中心
     function loadSavedGame() {
         const saved = localStorage.getItem('snake_saved_game');
         if (!saved) return;
@@ -457,16 +519,14 @@
         foodEatenCount = data.foodEatenCount || 0;
         currentHeadColor = data.currentHeadColor || '#0071e3';
 
-        // 📍 计算中心坐标
+        // 计算 800x800 正中心
         const centerX = Math.floor(tileCount / 2) * gridSize;
         const centerY = Math.floor(tileCount / 2) * gridSize;
         const oldHead = data.snake[0] || { x: centerX, y: centerY };
 
-        // 偏移量（将蛇头移到中心）
         const offsetX = centerX - oldHead.x;
         const offsetY = centerY - oldHead.y;
 
-        // 平移整条蛇的位置
         snake = data.snake.map(seg => ({
             x: seg.x + offsetX,
             y: seg.y + offsetY
@@ -475,9 +535,7 @@
         dx = data.dx;
         dy = data.dy;
 
-        // 重新随机生成食物，防止和新位置冲突
         spawnFood();
-
         initAndStartGame(true);
     }
 
