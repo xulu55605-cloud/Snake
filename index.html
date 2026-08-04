@@ -746,18 +746,28 @@ function autoSaveGame() {
 
 function loadSavedGame() {
     const raw = localStorage.getItem('snake360_saved');
-    if (!raw) return;
-    const d = JSON.parse(raw);
-    snakePoints = d.snakePoints; snakeLength = d.snakeLength;
-    angle = d.angle; targetAngle = d.angle; hasJoystickInput = false;
-    score = d.score; snakeSpeed = d.snakeSpeed || 5;
-    currentPlayerName = d.currentPlayerName;
-    playerChar = d.playerChar || Array.from(currentPlayerName)[0] || '🐍';
-    foodEatenCount = d.foodEatenCount || 0;
-    currentHeadColor = d.currentHeadColor || '#00d4aa';
-    food = d.food;
-
-    initGame(true);
+        if (!raw) return;
+        const d = JSON.parse(raw);
+        snakePoints = d.snakePoints; 
+        snakeLength = d.snakeLength;
+        angle = d.angle; 
+        targetAngle = d.angle; 
+        hasJoystickInput = false;
+        score = d.score; 
+        snakeSpeed = d.snakeSpeed || 5;
+        currentPlayerName = d.currentPlayerName;
+        playerChar = d.playerChar || Array.from(currentPlayerName)[0] || '🐍';
+        foodEatenCount = d.foodEatenCount || 0;
+        currentHeadColor = d.currentHeadColor || '#00d4aa';
+        food = d.food;
+    
+        // 💡【新增补丁】：如果读檔时蛇节点不够或蛇头重叠，强制将蛇头沿着当前朝向往前拔出一段安全距离 (15px)
+        if (snakePoints && snakePoints.length > 0) {
+            snakePoints[0].x += Math.cos(angle) * 15;
+            snakePoints[0].y += Math.sin(angle) * 15;
+        }
+    
+        initGame(true);
 }
 
 // ── LEADERBOARD ───────────────────────────
