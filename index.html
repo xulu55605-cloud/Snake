@@ -3,262 +3,174 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>贪吃蛇</title>
+    <title>贪吃蛇 360°</title>
     <meta name="theme-color" content="#1a1a2e">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-
     <style>
         :root {
             --bg: #1a1a2e;
             --surface: #16213e;
-            --card: #0f3460;
             --accent: #e94560;
             --accent2: #00d4aa;
             --text: #eaeaea;
             --muted: #8892a4;
-            --snake-head: #00d4aa;
-            --snake-body: #0fba8a;
-            --food: #e94560;
             --safe-top: env(safe-area-inset-top, 0px);
             --safe-bottom: env(safe-area-inset-bottom, 0px);
         }
+        * { box-sizing: border-box; margin: 0; padding: 0;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none; -webkit-user-select: none; }
+        html, body { width: 100%; height: 100%; background: var(--bg);
+            color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            overflow: hidden; }
 
-        * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; }
-
-        html, body {
-            width: 100%; height: 100%;
-            background: var(--bg);
-            color: var(--text);
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            overflow: hidden;
-        }
-
-        /* ── PAGE SYSTEM ─────────────────────────── */
-        .page { 
-            position: fixed; inset: 0;
-            display: flex; flex-direction: column; align-items: center;
-            padding-top: calc(var(--safe-top) + 16px);
-            padding-bottom: calc(var(--safe-bottom) + 16px);
-            padding-left: 16px; padding-right: 16px;
-            opacity: 0; pointer-events: none;
-            transition: opacity 0.25s ease;
-        }
+        /* ── PAGES ── */
+        .page { position: fixed; inset: 0; display: flex; flex-direction: column;
+            align-items: center; padding: calc(var(--safe-top) + 16px) 16px calc(var(--safe-bottom) + 16px);
+            opacity: 0; pointer-events: none; transition: opacity 0.25s; }
         .page.active { opacity: 1; pointer-events: all; }
 
-        /* ── MENU PAGE ──────────────────────────── */
-        #menuPage {
-            justify-content: center;
-            gap: 20px;
-        }
-
-        .logo {
-            font-size: 52px;
-            line-height: 1;
-            filter: drop-shadow(0 0 16px rgba(0, 212, 170, 0.5));
-        }
-        .game-title {
-            font-size: 28px; font-weight: 800; letter-spacing: 2px;
+        /* ── MENU ── */
+        #menuPage { justify-content: center; gap: 20px; }
+        .logo { font-size: 52px; line-height: 1; filter: drop-shadow(0 0 16px rgba(0,212,170,.5)); }
+        .game-title { font-size: 28px; font-weight: 800; letter-spacing: 2px;
             background: linear-gradient(135deg, var(--accent2), var(--accent));
-            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-        }
-
-        .menu-card {
-            width: 100%; max-width: 360px;
-            background: var(--surface);
-            border: 1px solid rgba(255,255,255,0.08);
-            border-radius: 20px;
-            padding: 20px;
-            display: flex; flex-direction: column; gap: 16px;
-        }
-
-        .field-label { font-size: 12px; font-weight: 700; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 6px; }
-        
-        input[type="text"] {
-            width: 100%; padding: 14px 16px;
-            background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12);
-            border-radius: 12px; color: var(--text); font-size: 16px; outline: none;
-        }
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .menu-card { width: 100%; max-width: 360px; background: var(--surface);
+            border: 1px solid rgba(255,255,255,.08); border-radius: 20px; padding: 20px;
+            display: flex; flex-direction: column; gap: 16px; }
+        .field-label { font-size: 12px; font-weight: 700; color: var(--muted);
+            letter-spacing: 1px; text-transform: uppercase; margin-bottom: 6px; }
+        input[type="text"] { width: 100%; padding: 14px 16px;
+            background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.12);
+            border-radius: 12px; color: var(--text); font-size: 16px; outline: none; }
         input[type="text"]:focus { border-color: var(--accent2); }
         input[type="text"]::placeholder { color: var(--muted); }
-
-        .speed-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
-        .speed-btn {
-            padding: 10px 4px; border: 1px solid rgba(255,255,255,0.12);
-            background: rgba(255,255,255,0.04); border-radius: 10px;
-            color: var(--muted); font-size: 13px; font-weight: 600; cursor: pointer;
-            transition: all 0.15s;
-        }
+        .speed-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 8px; }
+        .speed-btn { padding: 10px 4px; border: 1px solid rgba(255,255,255,.12);
+            background: rgba(255,255,255,.04); border-radius: 10px;
+            color: var(--muted); font-size: 13px; font-weight: 600; cursor: pointer; transition: all .15s; }
         .speed-btn.active { background: var(--accent2); border-color: var(--accent2); color: #000; }
-
         .menu-btns { display: flex; flex-direction: column; gap: 10px; }
-        .btn-primary {
-            width: 100%; padding: 16px; border: none; border-radius: 14px;
+        .btn-primary { width: 100%; padding: 16px; border: none; border-radius: 14px;
             font-size: 17px; font-weight: 700; cursor: pointer;
             background: linear-gradient(135deg, var(--accent2), #00b894);
-            color: #000; letter-spacing: 0.5px;
-            box-shadow: 0 4px 20px rgba(0, 212, 170, 0.3);
-        }
-        .btn-secondary {
-            width: 100%; padding: 14px; border: 1px solid rgba(255,255,255,0.15);
+            color: #000; box-shadow: 0 4px 20px rgba(0,212,170,.3); }
+        .btn-secondary { width: 100%; padding: 14px; border: 1px solid rgba(255,255,255,.15);
             border-radius: 14px; font-size: 15px; font-weight: 600; cursor: pointer;
-            background: transparent; color: var(--text);
-        }
+            background: transparent; color: var(--text); }
         .btn-secondary:disabled { opacity: 0.3; cursor: not-allowed; }
-
-        /* ── LEADERBOARD (menu page) ────────────── */
         .lb-section { width: 100%; max-width: 360px; }
-        .lb-title { font-size: 13px; font-weight: 700; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 10px; text-align: center; }
+        .lb-title { font-size: 13px; font-weight: 700; color: var(--muted); letter-spacing: 1px;
+            text-transform: uppercase; margin-bottom: 10px; text-align: center; }
         .lb-list { display: flex; flex-direction: column; gap: 6px; }
-        .lb-item {
-            display: flex; justify-content: space-between; align-items: center;
+        .lb-item { display: flex; justify-content: space-between; align-items: center;
             padding: 10px 14px; background: var(--surface);
-            border: 1px solid rgba(255,255,255,0.06); border-radius: 10px;
-            font-size: 14px;
-        }
+            border: 1px solid rgba(255,255,255,.06); border-radius: 10px; font-size: 14px; }
         .lb-rank { font-weight: 800; margin-right: 10px; }
-        .lb-rank-1 { color: #FFD700; }
-        .lb-rank-2 { color: #C0C0C0; }
-        .lb-rank-3 { color: #CD7F32; }
         .lb-score { font-weight: 700; color: var(--accent2); }
 
-        /* ── GAME PAGE ──────────────────────────── */
-        #gamePage {
-            padding: 0;
-            gap: 0;
-            justify-content: flex-start;
-            background: var(--bg);
-        }
-
-        /* Top HUD */
-        .hud {
-            width: 100%;
-            padding: calc(var(--safe-top) + 10px) 16px 10px;
+        /* ── GAME PAGE ── */
+        #gamePage { padding: 0; gap: 0; justify-content: flex-start; }
+        .hud { width: 100%; padding: calc(var(--safe-top) + 10px) 16px 10px;
             display: flex; justify-content: space-between; align-items: center;
-            background: var(--surface);
-            border-bottom: 1px solid rgba(255,255,255,0.06);
-            flex-shrink: 0;
-        }
-        .hud-player { font-size: 14px; font-weight: 700; color: var(--accent2); }
+            background: var(--surface); border-bottom: 1px solid rgba(255,255,255,.06); flex-shrink: 0; }
+        .hud-player { font-size: 13px; font-weight: 700; color: var(--accent2); }
         .hud-score { font-size: 22px; font-weight: 800; }
         .hud-actions { display: flex; gap: 8px; }
-        .hud-btn {
-            padding: 7px 14px; border-radius: 8px; font-size: 13px; font-weight: 700;
-            border: none; cursor: pointer;
-        }
-        .hud-pause { background: rgba(255,255,255,0.12); color: var(--text); }
-        .hud-exit { background: rgba(233,69,96,0.2); color: var(--accent); }
+        .hud-btn { padding: 7px 14px; border-radius: 8px; font-size: 13px;
+            font-weight: 700; border: none; cursor: pointer; }
+        .hud-pause { background: rgba(255,255,255,.12); color: var(--text); }
+        .hud-exit  { background: rgba(233,69,96,.2); color: var(--accent); }
 
-        /* Canvas wrapper — fills remaining space above joystick */
-        .canvas-wrap {
-            flex: 1;
-            width: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 10px;
-            position: relative;
-            overflow: hidden;
-        }
-
-        canvas {
-            display: block;
-            border-radius: 12px;
-            border: 2px solid rgba(255,255,255,0.08);
-            touch-action: none;
-            background: #0d0d1a;
-            /* Size set by JS to fill available space */
-        }
-
-        canvas.combo-glow {
-            animation: comboPulse 0.6s ease-in-out 2;
-        }
-        @keyframes comboPulse {
-            0%   { border-color: var(--accent); box-shadow: 0 0 24px rgba(233,69,96,0.7); }
-            50%  { border-color: #ffcc00;       box-shadow: 0 0 30px rgba(255,204,0,0.8); }
-            100% { border-color: rgba(255,255,255,0.08); box-shadow: none; }
-        }
-
-        /* COMBO badge */
-        .combo-text {
-            position: absolute;
-            top: 38%; left: 50%;
-            transform: translate(-50%, -50%) scale(0.5);
-            font-size: 28px; font-weight: 900;
-            background: linear-gradient(45deg, #ff2d55, #ffcc00);
-            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-            pointer-events: none; opacity: 0; z-index: 10;
-            transition: all 0.45s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            white-space: nowrap;
-        }
-        .combo-text.show { opacity: 1; transform: translate(-50%, -70%) scale(1.15); }
+        .canvas-wrap { flex: 1; width: 100%; display: flex; align-items: center;
+            justify-content: center; padding: 8px; position: relative; overflow: hidden; }
+        canvas { display: block; border-radius: 14px;
+            border: 2px solid rgba(255,255,255,.08); touch-action: none; background: #0d0d1a; }
 
         /* Pause overlay */
-        .overlay {
-            position: absolute; inset: 0;
-            background: rgba(10,10,25,0.85); backdrop-filter: blur(6px);
-            display: none; flex-direction: column; justify-content: center; align-items: center; gap: 20px;
-            border-radius: 12px; z-index: 20;
-        }
+        .overlay { position: absolute; inset: 0; background: rgba(10,10,25,.88);
+            backdrop-filter: blur(6px); display: none; flex-direction: column;
+            justify-content: center; align-items: center; gap: 20px;
+            border-radius: 14px; z-index: 20; }
         .overlay h2 { font-size: 22px; font-weight: 800; }
-        .overlay-btn {
-            padding: 14px 36px; border-radius: 14px; font-size: 17px; font-weight: 700;
-            border: none; cursor: pointer;
-            background: var(--accent2); color: #000;
-        }
+        .overlay-btn { padding: 14px 36px; border-radius: 14px; font-size: 17px;
+            font-weight: 700; border: none; cursor: pointer;
+            background: var(--accent2); color: #000; }
 
-        /* ── JOYSTICK ──────────────────────────── */
-        .joystick-area {
-            flex-shrink: 0;
-            width: 100%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            padding-bottom: calc(var(--safe-bottom) + 14px);
-            padding-top: 6px;
-            background: var(--bg);
-        }
+        /* ── JOYSTICK ── */
+        .joystick-area { flex-shrink: 0; width: 100%; display: flex;
+            justify-content: center; align-items: center;
+            padding-bottom: calc(var(--safe-bottom) + 14px); padding-top: 6px;
+            background: var(--bg); }
 
-        .joystick-zone {
-            position: relative;
-            width: 200px; height: 200px;
-            background: var(--surface);
-            border-radius: 50%;
-            border: 2px solid rgba(255,255,255,0.08);
+        .joystick-zone { position: relative; width: 210px; height: 210px;
+            background: var(--surface); border-radius: 50%;
+            border: 2px solid rgba(255,255,255,.1);
             display: flex; justify-content: center; align-items: center;
             touch-action: none;
-            box-shadow: 0 4px 24px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06);
+            box-shadow: 0 4px 28px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.07); }
+
+        /* Direction tick marks around the ring */
+        .joystick-zone::before {
+            content: '';
+            position: absolute; inset: 8px;
+            border-radius: 50%;
+            border: 1px dashed rgba(255,255,255,.08);
+            pointer-events: none;
         }
 
-        .joystick-arrow {
-            position: absolute;
-            font-size: 14px; color: rgba(255,255,255,0.2); pointer-events: none;
-        }
-        .arrow-up    { top: 12px; }
-        .arrow-down  { bottom: 12px; }
-        .arrow-left  { left: 14px; }
-        .arrow-right { right: 14px; }
+        /* Cardinal labels */
+        .j-label { position: absolute; font-size: 12px; color: rgba(255,255,255,.22);
+            pointer-events: none; font-weight: 700; }
+        .j-n { top: 10px; }
+        .j-s { bottom: 10px; }
+        .j-w { left: 10px; }
+        .j-e { right: 10px; }
 
-        .joystick-handle {
+        /* Direction indicator ring (shows current heading) */
+        .joystick-dir-ring {
             position: absolute;
-            width: 80px; height: 80px;
+            width: 190px; height: 190px;
+            border-radius: 50%;
+            pointer-events: none;
+        }
+
+        .joystick-handle { position: absolute; width: 86px; height: 86px;
             background: radial-gradient(circle at 35% 35%, #00e5b8, var(--accent2));
             border-radius: 50%;
-            box-shadow: 0 4px 16px rgba(0,212,170,0.5);
-            transition: transform 0.05s ease-out;
-            pointer-events: none;
-            display: flex; justify-content: center; align-items: center;
-            color: rgba(0,0,0,0.5); font-size: 22px;
+            box-shadow: 0 4px 18px rgba(0,212,170,.55);
+            transition: transform 0.04s ease-out;
+            pointer-events: none; display: flex; justify-content: center;
+            align-items: center; color: rgba(0,0,0,.45); font-size: 24px; }
+
+        /* Angle arc indicator drawn on canvas via JS */
+        #dirCanvas { position: absolute; inset: 0; border-radius: 50%; pointer-events: none; }
+
+        /* Combo */
+        .combo-text { position: absolute; top: 38%; left: 50%;
+            transform: translate(-50%,-50%) scale(0.5); font-size: 28px; font-weight: 900;
+            background: linear-gradient(45deg,#ff2d55,#ffcc00);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            pointer-events: none; opacity: 0; z-index: 10; white-space: nowrap;
+            transition: all .45s cubic-bezier(.175,.885,.32,1.275); }
+        .combo-text.show { opacity: 1; transform: translate(-50%,-70%) scale(1.15); }
+
+        canvas.combo-glow { animation: comboPulse .6s ease-in-out 2; }
+        @keyframes comboPulse {
+            0%   { border-color: var(--accent); box-shadow: 0 0 24px rgba(233,69,96,.7); }
+            50%  { border-color: #ffcc00;       box-shadow: 0 0 30px rgba(255,204,0,.8); }
+            100% { border-color: rgba(255,255,255,.08); box-shadow: none; }
         }
     </style>
 </head>
 <body>
 
-<!-- ═══ MENU PAGE ═══════════════════════════ -->
+<!-- MENU -->
 <div class="page active" id="menuPage">
     <div class="logo">🐍</div>
-    <div class="game-title">贪吃蛇</div>
-
+    <div class="game-title">贪吃蛇 360°</div>
     <div class="menu-card">
         <div>
             <div class="field-label">玩家名字</div>
@@ -267,10 +179,10 @@
         <div>
             <div class="field-label">速度</div>
             <div class="speed-grid">
-                <button class="speed-btn" data-speed="220">极慢</button>
-                <button class="speed-btn" data-speed="150">慢速</button>
-                <button class="speed-btn active" data-speed="100">中速</button>
-                <button class="speed-btn" data-speed="60">快速</button>
+                <button class="speed-btn" data-speed="2.5">极慢</button>
+                <button class="speed-btn" data-speed="3.5">慢速</button>
+                <button class="speed-btn active" data-speed="5">中速</button>
+                <button class="speed-btn" data-speed="7.5">快速</button>
             </div>
         </div>
         <div class="menu-btns">
@@ -278,17 +190,14 @@
             <button class="btn-secondary" id="loadBtn" disabled>读取存档</button>
         </div>
     </div>
-
     <div class="lb-section">
         <div class="lb-title">🏆 历史最佳</div>
         <ul class="lb-list" id="leaderboardList"></ul>
     </div>
 </div>
 
-<!-- ═══ GAME PAGE ════════════════════════════ -->
+<!-- GAME -->
 <div class="page" id="gamePage">
-
-    <!-- HUD -->
     <div class="hud">
         <div>
             <div class="hud-player" id="displayName">玩家</div>
@@ -299,8 +208,6 @@
             <button class="hud-btn hud-exit"  id="exitBtn">退出</button>
         </div>
     </div>
-
-    <!-- Canvas -->
     <div class="canvas-wrap" id="canvasWrap">
         <div class="combo-text" id="comboText">🔥 COMBO!</div>
         <canvas id="gameCanvas"></canvas>
@@ -309,23 +216,24 @@
             <button class="overlay-btn" id="resumeBtn">继续游戏</button>
         </div>
     </div>
-
-    <!-- Joystick -->
     <div class="joystick-area">
         <div class="joystick-zone" id="joystickZone">
-            <span class="joystick-arrow arrow-up">▲</span>
-            <span class="joystick-arrow arrow-down">▼</span>
-            <span class="joystick-arrow arrow-left">◄</span>
-            <span class="joystick-arrow arrow-right">►</span>
+            <span class="j-label j-n">N</span>
+            <span class="j-label j-s">S</span>
+            <span class="j-label j-w">W</span>
+            <span class="j-label j-e">E</span>
+            <canvas id="dirCanvas" width="210" height="210"></canvas>
             <div class="joystick-handle" id="joystickHandle">✽</div>
         </div>
     </div>
 </div>
 
 <script>
-// ── ELEMENTS ──────────────────────────────────────
+// ── ELEMENTS ──────────────────────────────
 const canvas       = document.getElementById('gameCanvas');
 const ctx          = canvas.getContext('2d');
+const dirCanvas    = document.getElementById('dirCanvas');
+const dctx         = dirCanvas.getContext('2d');
 const scoreEl      = document.getElementById('currentScore');
 const displayNameEl= document.getElementById('displayName');
 const nameInput    = document.getElementById('playerName');
@@ -338,183 +246,180 @@ const speedBtns    = document.querySelectorAll('.speed-btn');
 const lbList       = document.getElementById('leaderboardList');
 const menuPage     = document.getElementById('menuPage');
 const gamePage     = document.getElementById('gamePage');
-const canvasWrap   = document.getElementById('canvasWrap');
 const pauseOverlay = document.getElementById('pauseOverlay');
 const comboText    = document.getElementById('comboText');
 const joystickZone = document.getElementById('joystickZone');
 const joystickHandle = document.getElementById('joystickHandle');
 
-// ── CANVAS SIZE CALIBRATION ───────────────────────
-// Dynamically compute canvas px size so it fills the available space
-// without overflow, then derive gridSize and tileCount.
-let CANVAS_PX = 320; // fallback, recalculated below
-let gridSize   = 20;
-let tileCount  = 16;
+// ── CANVAS CALIBRATION ────────────────────
+let W = 320, H = 320;
 
 function calibrateCanvas() {
-    // The game page isn't visible yet; temporarily show it hidden to measure
-    const JOYSTICK_H = 228; // joystick-area approx height
-    const HUD_H = 72;
-    const safeTop    = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--safe-top') || '0') || 0;
-    const safeBottom = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--safe-bottom') || '0') || 0;
-
-    const totalH = window.innerHeight;
-    const totalW = window.innerWidth;
-
-    const availH = totalH - HUD_H - JOYSTICK_H - 20;  // 20px padding
-    const availW = totalW - 32; // 16px each side
-
-    const side = Math.min(availH, availW, 480); // cap at 480px
-    CANVAS_PX = side;
-
-    // Choose grid size: aim for 20 tiles (multiples of 10 preferred)
-    // gridSize must divide CANVAS_PX evenly
-    const targetTiles = 20;
-    gridSize = Math.floor(CANVAS_PX / targetTiles);
-    // snap to clean multiples
-    if (gridSize < 12) gridSize = 12;
-    if (gridSize > 28) gridSize = 28;
-    tileCount = Math.floor(CANVAS_PX / gridSize);
-    CANVAS_PX = tileCount * gridSize; // exact fit
-
-    canvas.width  = CANVAS_PX;
-    canvas.height = CANVAS_PX;
-    canvas.style.width  = CANVAS_PX + 'px';
-    canvas.style.height = CANVAS_PX + 'px';
+    const HUD_H = 72, STICK_H = 234;
+    const availH = window.innerHeight - HUD_H - STICK_H - 16;
+    const availW = window.innerWidth - 16;
+    const side = Math.min(availH, availW, 480);
+    W = H = Math.max(240, side);
+    canvas.width  = W; canvas.height = H;
+    canvas.style.width = W+'px'; canvas.style.height = H+'px';
 }
-
 calibrateCanvas();
-window.addEventListener('resize', () => {
-    calibrateCanvas();
-    if (gameRunning) draw();
-});
+window.addEventListener('resize', () => { calibrateCanvas(); });
 
-// ── GAME STATE ────────────────────────────────────
+// ── 360° SNAKE CORE ──────────────────────────────────────────────
+// Movement model: continuous pixel-based.
+// Snake is stored as an array of (x,y) "keypoints" — positions where
+// the snake changed direction. The body is rendered as a smooth polyline
+// with a fixed total arc-length (pixel length).
+
+const SNAKE_SPEED_DEFAULT = 5;   // px per frame (overridden by speed selector)
+const SNAKE_RADIUS = 7;          // half-thickness of snake body
+const FOOD_RADIUS  = 9;
+const SEGMENT_LEN  = SNAKE_RADIUS * 2.2; // distance between trail nodes
+
 const rainbowColors = ['#ff2d55','#ff9500','#ffcc00','#34c759','#007aff','#af52de'];
 const headThemes    = ['#00d4aa','#af52de','#ff2d55','#5856d6','#ff9500','#00c7be'];
 
-let snake = [], food = {x:0, y:0}, dx = gridSize, dy = 0;
-let score = 0, gameInterval = null;
-let speed = 100, isPaused = false, gameRunning = false;
-let currentPlayerName = '', playerChar = '🐍';
-let foodEatenCount = 0, isComboMode = false;
+// Game state
+let snakePoints = [];  // [{x,y}] head-first, continuous trail nodes
+let snakeLength = 60;  // total pixel length of body
+let angle      = 0;    // current heading in radians (0 = right)
+let snakeSpeed = SNAKE_SPEED_DEFAULT;
+let food       = { x: 100, y: 100 };
+let score      = 0, foodEatenCount = 0;
+let isComboMode = false;
 let currentHeadColor = '#00d4aa';
+let currentPlayerName = '', playerChar = '🐍';
+let gameRunning = false, isPaused = false;
+let rafId = null;
+let lastTime = 0;
 
-// ── INIT ──────────────────────────────────────────
-checkSavedGame();
-updateLeaderboardUI();
+// Joystick state — stores desired angle
+let joystickActive = false;
+let targetAngle    = 0;   // angle player is pointing to
+let hasJoystickInput = false;  // whether stick is being held
 
-// ── SPEED BUTTONS ─────────────────────────────────
-speedBtns.forEach(btn => {
-    btn.addEventListener('click', () => {
-        speedBtns.forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        speed = parseInt(btn.dataset.speed);
-    });
-});
+// ── SPEED BUTTONS ─────────────────────────
+speedBtns.forEach(btn => btn.addEventListener('click', () => {
+    speedBtns.forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    snakeSpeed = parseFloat(btn.dataset.speed);
+}));
 
-// ── PAGE SWITCHING ────────────────────────────────
+// ── PAGE SWITCH ───────────────────────────
 function showPage(id) {
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
     document.getElementById(id).classList.add('active');
 }
 
-// ── BUTTON EVENTS ─────────────────────────────────
-startBtn.addEventListener('click',  () => initAndStartGame(false));
-loadBtn.addEventListener('click',   loadSavedGame);
-pauseBtn.addEventListener('click',  togglePause);
+// ── BUTTONS ───────────────────────────────
+startBtn.addEventListener('click', () => initGame(false));
+loadBtn.addEventListener('click',  loadSavedGame);
+pauseBtn.addEventListener('click', togglePause);
 resumeBtn.addEventListener('click', togglePause);
-exitBtn.addEventListener('click',   exitGame);
-document.addEventListener('keydown', handleKeyInput);
+exitBtn.addEventListener('click',  exitGame);
+document.addEventListener('keydown', handleKey);
+checkSavedGame(); updateLeaderboardUI();
 
-// ── JOYSTICK ──────────────────────────────────────
-let joystickActive = false, jcx = 0, jcy = 0;
+// ── JOYSTICK ──────────────────────────────
+let jcx = 0, jcy = 0;
+const MAX_RADIUS = 70;
 
-function handleJoystickMove(cx, cy) {
-    if (!gameRunning || isPaused) return;
-    const dx2 = cx - jcx, dy2 = cy - jcy;
-    const dist = Math.hypot(dx2, dy2);
-    const maxR = 55;
-    const angle = Math.atan2(dy2, dx2);
-    const d = Math.min(dist, maxR);
-    joystickHandle.style.transform = `translate(${Math.cos(angle)*d}px, ${Math.sin(angle)*d}px)`;
+function updateJoystick(cx, cy) {
+    const dx = cx - jcx, dy = cy - jcy;
+    const dist = Math.hypot(dx, dy);
 
-    if (dist > 18) {
-        if (Math.abs(dx2) > Math.abs(dy2)) {
-            setDirection(dx2 > 0 ? gridSize : -gridSize, 0);
-        } else {
-            setDirection(0, dy2 > 0 ? gridSize : -gridSize);
-        }
+    // Clamp handle position
+    const clamped = Math.min(dist, MAX_RADIUS);
+    const ang = Math.atan2(dy, dx);
+    const hx = Math.cos(ang) * clamped;
+    const hy = Math.sin(ang) * clamped;
+    joystickHandle.style.transform = `translate(${hx}px,${hy}px)`;
+
+    if (dist > 12) {
+        targetAngle = ang;
+        hasJoystickInput = true;
+        drawDirArc(ang);
+    } else {
+        hasJoystickInput = false;
+        clearDirArc();
     }
 }
 
 function resetJoystick() {
     joystickActive = false;
+    hasJoystickInput = false;
     joystickHandle.style.transform = 'translate(0,0)';
+    clearDirArc();
+}
+
+function drawDirArc(ang) {
+    const sz = 210;
+    dctx.clearRect(0, 0, sz, sz);
+    const cx = sz/2, cy = sz/2, r = sz/2 - 6;
+    // Draw a glowing arc from center outward in direction of angle
+    dctx.save();
+    dctx.strokeStyle = 'rgba(0,212,170,0.35)';
+    dctx.lineWidth = 3;
+    dctx.shadowColor = '#00d4aa';
+    dctx.shadowBlur = 8;
+    dctx.beginPath();
+    dctx.arc(cx, cy, r, ang - 0.25, ang + 0.25);
+    dctx.stroke();
+    // Dot at tip
+    dctx.fillStyle = '#00d4aa';
+    dctx.shadowBlur = 12;
+    dctx.beginPath();
+    dctx.arc(cx + Math.cos(ang)*r, cy + Math.sin(ang)*r, 5, 0, Math.PI*2);
+    dctx.fill();
+    dctx.restore();
+}
+
+function clearDirArc() {
+    dctx.clearRect(0, 0, 210, 210);
 }
 
 joystickZone.addEventListener('touchstart', e => {
     joystickActive = true;
     const r = joystickZone.getBoundingClientRect();
     jcx = r.left + r.width/2; jcy = r.top + r.height/2;
-    handleJoystickMove(e.touches[0].clientX, e.touches[0].clientY);
+    updateJoystick(e.touches[0].clientX, e.touches[0].clientY);
     e.preventDefault();
 }, { passive: false });
-
 joystickZone.addEventListener('touchmove', e => {
     if (!joystickActive) return;
     e.preventDefault();
-    handleJoystickMove(e.touches[0].clientX, e.touches[0].clientY);
+    updateJoystick(e.touches[0].clientX, e.touches[0].clientY);
 }, { passive: false });
-
-joystickZone.addEventListener('touchend',   resetJoystick);
-joystickZone.addEventListener('touchcancel',resetJoystick);
-
+joystickZone.addEventListener('touchend',    resetJoystick);
+joystickZone.addEventListener('touchcancel', resetJoystick);
 joystickZone.addEventListener('mousedown', e => {
     joystickActive = true;
     const r = joystickZone.getBoundingClientRect();
     jcx = r.left + r.width/2; jcy = r.top + r.height/2;
-    handleJoystickMove(e.clientX, e.clientY);
+    updateJoystick(e.clientX, e.clientY);
 });
-document.addEventListener('mousemove', e => { if (joystickActive) handleJoystickMove(e.clientX, e.clientY); });
+document.addEventListener('mousemove', e => { if (joystickActive) updateJoystick(e.clientX, e.clientY); });
 document.addEventListener('mouseup',   () => { if (joystickActive) resetJoystick(); });
 
-// ── DIRECTION ─────────────────────────────────────
-function setDirection(ndx, ndy) {
-    if (!gameRunning || isPaused) return;
-    if (ndx === -dx && ndx !== 0) return;
-    if (ndy === -dy && ndy !== 0) return;
-    dx = ndx; dy = ndy;
-}
-
-function handleKeyInput(e) {
-    const k = e.key;
-    if (k==='ArrowLeft'||k==='a')  setDirection(-gridSize, 0);
-    if (k==='ArrowUp'||k==='w')    setDirection(0, -gridSize);
-    if (k==='ArrowRight'||k==='d') setDirection(gridSize, 0);
-    if (k==='ArrowDown'||k==='s')  setDirection(0, gridSize);
-    if (k===' ') togglePause();
-}
-
-// ── GAME INIT ─────────────────────────────────────
-function initAndStartGame(isLoaded = false) {
-    if (!isLoaded) {
-        calibrateCanvas(); // re-measure when entering game page
-        const name = nameInput.value.trim() || '玩家';
-        currentPlayerName = name;
-        playerChar = Array.from(name)[0] || '🐍';
-
-        const mid = Math.floor(tileCount / 2) * gridSize;
-        snake = [
-            { x: mid,               y: mid },
-            { x: mid - gridSize,    y: mid },
-            { x: mid - 2*gridSize,  y: mid },
-        ];
-        dx = gridSize; dy = 0; score = 0;
-        foodEatenCount = 0; currentHeadColor = '#00d4aa';
-        spawnFood();
+// Keyboard control (WASD / arrows — maps to 8 cardinal/diagonal angles)
+const KEY_ANGLES = {
+    ArrowRight: 0, d: 0,
+    ArrowDown: Math.PI/2, s: Math.PI/2,
+    ArrowLeft: Math.PI, a: Math.PI,
+    ArrowUp: -Math.PI/2, w: -Math.PI/2,
+};
+function handleKey(e) {
+    if (e.key in KEY_ANGLES) {
+        targetAngle = KEY_ANGLES[e.key];
+        hasJoystickInput = true;
     }
+    if (e.key === ' ') togglePause();
+}
 
+// ── INIT GAME ─────────────────────────────
+function initGame(isLoaded) {
+    // Show game page FIRST so layout is rendered, then measure canvas size
     showPage('gamePage');
     displayNameEl.textContent = currentPlayerName;
     scoreEl.textContent = score;
@@ -522,118 +427,260 @@ function initAndStartGame(isLoaded = false) {
     pauseOverlay.style.display = 'none';
     pauseBtn.textContent = '暂停';
 
-    if (gameInterval) clearInterval(gameInterval);
-    gameRunning = true;
-    gameInterval = setInterval(gameLoop, speed);
-    draw();
-}
+    // Use rAF to let browser paint and compute layout before we measure + start
+    requestAnimationFrame(() => {
+        calibrateCanvas();
 
-// ── GAME LOOP ─────────────────────────────────────
-function gameLoop() {
-    if (!gameRunning || isPaused) return;
-    moveSnake();
-    if (checkCollision()) { handleGameOver(); return; }
-    draw();
-}
+        if (!isLoaded) {
+            const name = nameInput.value.trim() || '玩家';
+            currentPlayerName = name;
+            playerChar = Array.from(name)[0] || '🐍';
+            displayNameEl.textContent = currentPlayerName;
+            score = 0; foodEatenCount = 0;
+            scoreEl.textContent = 0;
+            currentHeadColor = '#00d4aa';
 
-function moveSnake() {
-    const head = { x: snake[0].x + dx, y: snake[0].y + dy };
-    snake.unshift(head);
-    if (head.x === food.x && head.y === food.y) {
-        score += 10;
-        foodEatenCount++;
-        scoreEl.textContent = score;
-        if (foodEatenCount % 5 === 0) triggerComboEffect();
-        spawnFood();
-    } else {
-        snake.pop();
-    }
-}
-
-function checkCollision() {
-    const h = snake[0];
-    if (h.x < 0 || h.x >= CANVAS_PX || h.y < 0 || h.y >= CANVAS_PX) return true;
-    for (let i = 1; i < snake.length; i++)
-        if (h.x === snake[i].x && h.y === snake[i].y) return true;
-    return false;
-}
-
-function spawnFood() {
-    food.x = Math.floor(Math.random() * tileCount) * gridSize;
-    food.y = Math.floor(Math.random() * tileCount) * gridSize;
-}
-
-// ── DRAW ──────────────────────────────────────────
-function draw() {
-    // Background with subtle grid
-    ctx.fillStyle = '#0d0d1a';
-    ctx.fillRect(0, 0, CANVAS_PX, CANVAS_PX);
-
-    // Subtle grid lines
-    ctx.strokeStyle = 'rgba(255,255,255,0.03)';
-    ctx.lineWidth = 0.5;
-    for (let i = 0; i <= tileCount; i++) {
-        const p = i * gridSize;
-        ctx.beginPath(); ctx.moveTo(p, 0); ctx.lineTo(p, CANVAS_PX); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(0, p); ctx.lineTo(CANVAS_PX, p); ctx.stroke();
-    }
-
-    // Food — glowing circle
-    const fx = food.x + gridSize/2, fy = food.y + gridSize/2, fr = gridSize/2 - 2;
-    const foodGrad = ctx.createRadialGradient(fx-1, fy-2, 1, fx, fy, fr);
-    foodGrad.addColorStop(0, '#ff6b8a');
-    foodGrad.addColorStop(1, '#e94560');
-    ctx.fillStyle = foodGrad;
-    ctx.shadowColor = '#e94560'; ctx.shadowBlur = 10;
-    ctx.beginPath(); ctx.arc(fx, fy, fr, 0, Math.PI*2); ctx.fill();
-    ctx.shadowBlur = 0;
-
-    // Snake
-    const r = Math.max(3, gridSize * 0.25);
-    snake.forEach((seg, index) => {
-        const x = seg.x + 1, y = seg.y + 1, w = gridSize - 2, h2 = gridSize - 2;
-
-        if (index === 0) {
-            // Head with gradient
-            const hg = ctx.createLinearGradient(x, y, x+w, y+h2);
-            hg.addColorStop(0, currentHeadColor);
-            hg.addColorStop(1, '#006655');
-            ctx.fillStyle = hg;
-            ctx.shadowColor = currentHeadColor; ctx.shadowBlur = 8;
-            roundRect(ctx, x, y, w, h2, r);
-            ctx.shadowBlur = 0;
-
-            // Player char
-            ctx.fillStyle = 'rgba(255,255,255,0.9)';
-            ctx.font = `bold ${Math.max(10, gridSize - 6)}px -apple-system, sans-serif`;
-            ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-            ctx.fillText(playerChar, seg.x + gridSize/2, seg.y + gridSize/2 + 1);
+            // Head starts at center, tail extends rightward (so it stays in bounds)
+            angle = Math.PI; // heading left
+            targetAngle = Math.PI;
+            hasJoystickInput = false;
+            snakeLength = 60;
+            snakePoints = [];
+            const cx = W / 2, cy = H / 2;
+            // Tail goes to the RIGHT of center (opposite of heading direction)
+            for (let i = 0; i <= Math.ceil(snakeLength / SEGMENT_LEN) + 2; i++) {
+                snakePoints.push({ x: cx + i * SEGMENT_LEN, y: cy });
+            }
+            spawnFood();
         } else {
-            const color = isComboMode
-                ? rainbowColors[index % rainbowColors.length]
-                : (index < 3 ? '#00d4aa' : '#0fba8a');
-            const opacity = Math.max(0.4, 1 - index * 0.015);
-            ctx.globalAlpha = opacity;
-            ctx.fillStyle = color;
-            roundRect(ctx, x, y, w, h2, r);
-            ctx.globalAlpha = 1;
+            // 在测量好真实 W 和 H 之后再平移整条蛇，确保蛇头精准对齐画布中心
+            if (snakePoints && snakePoints.length > 0) {
+                const dx = (W / 2) - snakePoints[0].x;
+                const dy = (H / 2) - snakePoints[0].y;
+                for (let i = 0; i < snakePoints.length; i++) {
+                    snakePoints[i].x += dx;
+                    snakePoints[i].y += dy;
+                }
+            }
         }
+
+        gameRunning = true;
+        if (rafId) cancelAnimationFrame(rafId);
+        lastTime = performance.now();
+        rafId = requestAnimationFrame(gameLoop);
     });
 }
 
-function roundRect(ctx, x, y, w, h, r) {
-    ctx.beginPath();
-    ctx.moveTo(x + r, y);
-    ctx.arcTo(x+w, y, x+w, y+h, r);
-    ctx.arcTo(x+w, y+h, x, y+h, r);
-    ctx.arcTo(x, y+h, x, y, r);
-    ctx.arcTo(x, y, x+w, y, r);
-    ctx.closePath();
-    ctx.fill();
+// ── GAME LOOP (rAF-based, delta-time) ─────
+function gameLoop(now) {
+    if (!gameRunning) return;
+    rafId = requestAnimationFrame(gameLoop);
+    if (isPaused) return;
+
+    const dt = Math.min((now - lastTime) / 16.67, 1.5); // normalise to 60fps, cap tighter
+    lastTime = now;
+
+    update(dt);
+    draw();
 }
 
-// ── COMBO ─────────────────────────────────────────
-function triggerComboEffect() {
+// ── UPDATE ────────────────────────────────
+const TURN_SPEED = 0.12; // radians per frame — smooth steering
+
+function update(dt) {
+    // Smoothly rotate angle toward targetAngle when joystick active
+    if (hasJoystickInput) {
+        // Shortest-path angle lerp
+        let diff = targetAngle - angle;
+        // Wrap to [-PI, PI]
+        while (diff >  Math.PI) diff -= Math.PI * 2;
+        while (diff < -Math.PI) diff += Math.PI * 2;
+        const step = TURN_SPEED * dt;
+        if (Math.abs(diff) < step) {
+            angle = targetAngle;
+        } else {
+            angle += Math.sign(diff) * step;
+        }
+    }
+
+    // Move head
+    const head = snakePoints[0];
+    const newHead = {
+        x: head.x + Math.cos(angle) * snakeSpeed * dt,
+        y: head.y + Math.sin(angle) * snakeSpeed * dt,
+    };
+    snakePoints.unshift(newHead);
+
+    // Trim trail to snakeLength pixels
+    trimTrail();
+
+    // Collision — walls (use center of head)
+    if (newHead.x < SNAKE_RADIUS + 1 || newHead.x > W - SNAKE_RADIUS - 1 ||
+        newHead.y < SNAKE_RADIUS + 1 || newHead.y > H - SNAKE_RADIUS - 1) {
+        handleGameOver(); return;
+    }
+
+    // Collision — self (skip first 60px = neck, avoid false positives on tight curves)
+    const skipNodes = Math.ceil(60 / SEGMENT_LEN);
+    for (let i = skipNodes; i < snakePoints.length; i++) {
+        const p = snakePoints[i];
+        if (Math.hypot(newHead.x - p.x, newHead.y - p.y) < SNAKE_RADIUS * 1.2) {
+            handleGameOver(); return;
+        }
+    }
+
+    // Eat food
+    if (Math.hypot(newHead.x - food.x, newHead.y - food.y) < SNAKE_RADIUS + FOOD_RADIUS) {
+        score += 10;
+        foodEatenCount++;
+        scoreEl.textContent = score;
+        snakeLength += 30; // grow
+        if (foodEatenCount % 5 === 0) triggerCombo();
+        spawnFood();
+    }
+}
+
+function trimTrail() {
+    // Walk trail, accumulate arc-length, cut when exceeds snakeLength
+    let total = 0;
+    for (let i = 1; i < snakePoints.length; i++) {
+        const prev = snakePoints[i-1], curr = snakePoints[i];
+        total += Math.hypot(curr.x - prev.x, curr.y - prev.y);
+        if (total >= snakeLength) {
+            snakePoints.length = i + 1;
+            break;
+        }
+    }
+}
+
+// ── DRAW ──────────────────────────────────
+function draw() {
+    // Background
+    ctx.fillStyle = '#0d0d1a';
+    ctx.fillRect(0, 0, W, H);
+
+    // Subtle dot grid
+    ctx.fillStyle = 'rgba(255,255,255,0.04)';
+    const spacing = 24;
+    for (let x = spacing; x < W; x += spacing)
+        for (let y = spacing; y < H; y += spacing) {
+            ctx.beginPath(); ctx.arc(x, y, 1, 0, Math.PI*2); ctx.fill();
+        }
+
+    // Boundary warning glow
+    const edgeDist = 18;
+    const head = snakePoints[0];
+    if (head.x < edgeDist || head.x > W-edgeDist || head.y < edgeDist || head.y > H-edgeDist) {
+        const grad = ctx.createRadialGradient(head.x, head.y, 0, head.x, head.y, 60);
+        grad.addColorStop(0, 'rgba(233,69,96,0.25)');
+        grad.addColorStop(1, 'rgba(233,69,96,0)');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, W, H);
+    }
+
+    // Food — pulsing glow
+    const pulse = 0.85 + 0.15 * Math.sin(performance.now() / 200);
+    const foodGrad = ctx.createRadialGradient(food.x, food.y, 0, food.x, food.y, FOOD_RADIUS * pulse * 1.6);
+    foodGrad.addColorStop(0, '#ff8fa3');
+    foodGrad.addColorStop(0.5, '#e94560');
+    foodGrad.addColorStop(1, 'rgba(233,69,96,0)');
+    ctx.fillStyle = foodGrad;
+    ctx.beginPath(); ctx.arc(food.x, food.y, FOOD_RADIUS * pulse * 1.6, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#ff6b8a';
+    ctx.beginPath(); ctx.arc(food.x, food.y, FOOD_RADIUS * pulse, 0, Math.PI*2); ctx.fill();
+
+    // Snake body — draw as a thick polyline
+    if (snakePoints.length < 2) return;
+
+    // Determine total arc length for colour/opacity gradient
+    let totalLen = 0;
+    const dists = [0];
+    for (let i = 1; i < snakePoints.length; i++) {
+        totalLen += Math.hypot(snakePoints[i].x - snakePoints[i-1].x,
+                               snakePoints[i].y - snakePoints[i-1].y);
+        dists.push(totalLen);
+    }
+
+    // Draw body segments back-to-front (tail first)
+    for (let i = snakePoints.length - 2; i >= 0; i--) {
+        const t = totalLen > 0 ? 1 - dists[i] / totalLen : 0; // 0=tail, 1=head
+        const alpha = 0.25 + 0.75 * t;
+        const radius = SNAKE_RADIUS * (0.35 + 0.65 * t);
+
+        let color;
+        if (isComboMode) {
+            color = rainbowColors[Math.floor(i / 4) % rainbowColors.length];
+        } else {
+            color = i === 0 ? currentHeadColor : '#00d4aa';
+        }
+
+        // Parse hex to rgba
+        ctx.globalAlpha = alpha;
+        ctx.strokeStyle = color;
+        ctx.lineWidth = radius * 2;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.beginPath();
+        ctx.moveTo(snakePoints[i].x, snakePoints[i].y);
+        ctx.lineTo(snakePoints[i+1].x, snakePoints[i+1].y);
+        ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+
+    // Head circle
+    const hx = snakePoints[0].x, hy = snakePoints[0].y;
+    const hGrad = ctx.createRadialGradient(hx - 2, hy - 2, 1, hx, hy, SNAKE_RADIUS + 3);
+    hGrad.addColorStop(0, lighten(currentHeadColor));
+    hGrad.addColorStop(1, currentHeadColor);
+    ctx.fillStyle = hGrad;
+    ctx.shadowColor = currentHeadColor; ctx.shadowBlur = 12;
+    ctx.beginPath(); ctx.arc(hx, hy, SNAKE_RADIUS + 2, 0, Math.PI*2); ctx.fill();
+    ctx.shadowBlur = 0;
+
+    // Eyes — always face heading direction
+    const eyeOffset = SNAKE_RADIUS * 0.55;
+    const perpAngle = angle + Math.PI/2;
+    const eyeForward = SNAKE_RADIUS * 0.4;
+    const eyeR = SNAKE_RADIUS * 0.3;
+    [1, -1].forEach(side => {
+        const ex = hx + Math.cos(angle) * eyeForward + Math.cos(perpAngle) * eyeOffset * side;
+        const ey = hy + Math.sin(angle) * eyeForward + Math.sin(perpAngle) * eyeOffset * side;
+        ctx.fillStyle = '#fff';
+        ctx.beginPath(); ctx.arc(ex, ey, eyeR, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = '#000';
+        ctx.beginPath(); ctx.arc(ex + Math.cos(angle)*eyeR*0.4, ey + Math.sin(angle)*eyeR*0.4,
+            eyeR*0.55, 0, Math.PI*2); ctx.fill();
+    });
+
+    // Direction arrow in front of head
+    ctx.save();
+    ctx.translate(hx + Math.cos(angle)*(SNAKE_RADIUS+10), hy + Math.sin(angle)*(SNAKE_RADIUS+10));
+    ctx.rotate(angle);
+    ctx.fillStyle = 'rgba(255,255,255,0.35)';
+    ctx.beginPath();
+    ctx.moveTo(6, 0); ctx.lineTo(-4, -4); ctx.lineTo(-4, 4);
+    ctx.closePath(); ctx.fill();
+    ctx.restore();
+}
+
+function lighten(hex) {
+    // Return a lighter version of the hex for the head gradient highlight
+    let n = parseInt(hex.replace('#',''), 16);
+    const r = Math.min(255, ((n >> 16) & 0xff) + 60);
+    const g = Math.min(255, ((n >> 8) & 0xff) + 60);
+    const b = Math.min(255, (n & 0xff) + 60);
+    return `rgb(${r},${g},${b})`;
+}
+
+// ── FOOD ──────────────────────────────────
+function spawnFood() {
+    const margin = FOOD_RADIUS + 10;
+    food.x = margin + Math.random() * (W - margin*2);
+    food.y = margin + Math.random() * (H - margin*2);
+}
+
+// ── COMBO ─────────────────────────────────
+function triggerCombo() {
     isComboMode = true;
     canvas.classList.add('combo-glow');
     comboText.textContent = `🔥 COMBO x${Math.floor(foodEatenCount/5)}!`;
@@ -646,93 +693,91 @@ function triggerComboEffect() {
     }, 1200);
 }
 
-// ── PAUSE / EXIT ──────────────────────────────────
+// ── PAUSE / EXIT ──────────────────────────
 function togglePause() {
     if (!gameRunning) return;
     isPaused = !isPaused;
     pauseOverlay.style.display = isPaused ? 'flex' : 'none';
     pauseBtn.textContent = isPaused ? '继续' : '暂停';
-    if (isPaused) autoSaveGame();
+    if (isPaused) { autoSaveGame(); lastTime = performance.now(); }
 }
 
 function exitGame() {
     if (confirm('退出游戏？当前进度将自动保存。')) {
         autoSaveGame();
         gameRunning = false;
-        clearInterval(gameInterval);
+        if (rafId) cancelAnimationFrame(rafId);
         showPage('menuPage');
         updateLeaderboardUI();
     }
 }
 
-// ── GAME OVER ─────────────────────────────────────
+// ── GAME OVER ─────────────────────────────
 function handleGameOver() {
     gameRunning = false;
-    clearInterval(gameInterval);
+    if (rafId) cancelAnimationFrame(rafId);
     saveScore(currentPlayerName, score);
     updateLeaderboardUI();
+    // Flash red then show dialog
+    canvas.style.borderColor = '#e94560';
+    canvas.style.boxShadow = '0 0 30px rgba(233,69,96,.8)';
     setTimeout(() => {
+        canvas.style.borderColor = '';
+        canvas.style.boxShadow = '';
         const shouldSave = confirm(`💥 游戏结束！\n${currentPlayerName} 得了 ${score} 分\n\n保存存档吗？`);
-        if (shouldSave) {
-            autoSaveGame();
-        }
+        if (shouldSave) autoSaveGame();
         showPage('menuPage');
         updateLeaderboardUI();
-    }, 120);
+    }, 300);
 }
 
-// ── SAVE / LOAD ───────────────────────────────────
+// ── SAVE / LOAD ───────────────────────────
 function checkSavedGame() {
-    loadBtn.disabled = !localStorage.getItem('snake_saved_game');
+    loadBtn.disabled = !localStorage.getItem('snake360_saved');
 }
 
 function autoSaveGame() {
-    localStorage.setItem('snake_saved_game', JSON.stringify({
-        snake, food, dx, dy, score, speed,
-        currentPlayerName, playerChar, foodEatenCount, currentHeadColor
+    localStorage.setItem('snake360_saved', JSON.stringify({
+        snakePoints, snakeLength, angle, score, snakeSpeed,
+        currentPlayerName, playerChar, foodEatenCount, currentHeadColor, food
     }));
     checkSavedGame();
 }
 
 function loadSavedGame() {
-    const saved = localStorage.getItem('snake_saved_game');
-    if (!saved) return;
-    const d = JSON.parse(saved);
-    score = d.score; speed = d.speed || 100;
+    const raw = localStorage.getItem('snake360_saved');
+    if (!raw) return;
+    const d = JSON.parse(raw);
+    snakePoints = d.snakePoints; snakeLength = d.snakeLength;
+    angle = d.angle; targetAngle = d.angle; hasJoystickInput = false;
+    score = d.score; snakeSpeed = d.snakeSpeed || 5;
     currentPlayerName = d.currentPlayerName;
     playerChar = d.playerChar || Array.from(currentPlayerName)[0] || '🐍';
     foodEatenCount = d.foodEatenCount || 0;
     currentHeadColor = d.currentHeadColor || '#00d4aa';
+    food = d.food;
 
-    calibrateCanvas();
-    const centerX = Math.floor(tileCount / 2) * gridSize;
-    const centerY = Math.floor(tileCount / 2) * gridSize;
-    const oldHead = d.snake[0] || { x: centerX, y: centerY };
-    const ox = centerX - oldHead.x, oy = centerY - oldHead.y;
-    snake = d.snake.map(s => ({ x: s.x + ox, y: s.y + oy }));
-    dx = d.dx; dy = d.dy;
-    spawnFood();
-    initAndStartGame(true);
+    initGame(true);
 }
 
-// ── SCORE / LEADERBOARD ───────────────────────────
-function saveScore(name, score) {
+// ── LEADERBOARD ───────────────────────────
+function saveScore(name, sc) {
     let scores = JSON.parse(localStorage.getItem('snake_top3')) || [];
-    scores.push({ name, score });
-    scores.sort((a, b) => b.score - a.score);
-    localStorage.setItem('snake_top3', JSON.stringify(scores.slice(0, 3)));
+    scores.push({ name, score: sc });
+    scores.sort((a,b) => b.score - a.score);
+    localStorage.setItem('snake_top3', JSON.stringify(scores.slice(0,3)));
 }
 
 function updateLeaderboardUI() {
     const scores = JSON.parse(localStorage.getItem('snake_top3')) || [];
-    const medals = ['lb-rank-1','lb-rank-2','lb-rank-3'];
+    const medals = ['🥇','🥈','🥉'];
     lbList.innerHTML = scores.length === 0
         ? '<li class="lb-item" style="justify-content:center;color:#8892a4;">暂无记录</li>'
         : '';
     scores.forEach((item, i) => {
         const li = document.createElement('li');
         li.className = 'lb-item';
-        li.innerHTML = `<span><span class="lb-rank ${medals[i]}">${['🥇','🥈','🥉'][i]}</span>${item.name}</span><span class="lb-score">${item.score} 分</span>`;
+        li.innerHTML = `<span><span class="lb-rank">${medals[i]}</span>${item.name}</span><span class="lb-score">${item.score} 分</span>`;
         lbList.appendChild(li);
     });
 }
