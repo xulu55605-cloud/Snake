@@ -3,217 +3,315 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>贪吃蛇_心雨版</title>
-    
-    <link rel="manifest" href="./manifest.json">
-    <meta name="theme-color" content="#0071e3">
+    <title>贪吃蛇</title>
+    <meta name="theme-color" content="#1a1a2e">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <link rel="apple-touch-icon" href="./icons/icon-192.svg">
 
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; user-select: none; -webkit-user-select: none; }
+        :root {
+            --bg: #1a1a2e;
+            --surface: #16213e;
+            --card: #0f3460;
+            --accent: #e94560;
+            --accent2: #00d4aa;
+            --text: #eaeaea;
+            --muted: #8892a4;
+            --snake-head: #00d4aa;
+            --snake-body: #0fba8a;
+            --food: #e94560;
+            --safe-top: env(safe-area-inset-top, 0px);
+            --safe-bottom: env(safe-area-inset-bottom, 0px);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; }
+
+        html, body {
+            width: 100%; height: 100%;
+            background: var(--bg);
+            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            overflow: hidden;
+        }
+
+        /* ── PAGE SYSTEM ─────────────────────────── */
+        .page { 
+            position: fixed; inset: 0;
+            display: flex; flex-direction: column; align-items: center;
+            padding-top: calc(var(--safe-top) + 16px);
+            padding-bottom: calc(var(--safe-bottom) + 16px);
+            padding-left: 16px; padding-right: 16px;
+            opacity: 0; pointer-events: none;
+            transition: opacity 0.25s ease;
+        }
+        .page.active { opacity: 1; pointer-events: all; }
+
+        /* ── MENU PAGE ──────────────────────────── */
+        #menuPage {
+            justify-content: center;
+            gap: 20px;
+        }
+
+        .logo {
+            font-size: 52px;
+            line-height: 1;
+            filter: drop-shadow(0 0 16px rgba(0, 212, 170, 0.5));
+        }
+        .game-title {
+            font-size: 28px; font-weight: 800; letter-spacing: 2px;
+            background: linear-gradient(135deg, var(--accent2), var(--accent));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+
+        .menu-card {
+            width: 100%; max-width: 360px;
+            background: var(--surface);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 20px;
+            padding: 20px;
+            display: flex; flex-direction: column; gap: 16px;
+        }
+
+        .field-label { font-size: 12px; font-weight: 700; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 6px; }
         
-        body { 
-            background-color: #f0f2f5; 
-            color: #333; 
-            display: flex; 
-            justify-content: center; 
-            align-items: center; 
-            min-height: 100vh; 
-            padding: 10px;
-            padding-top: max(10px, env(safe-area-inset-top));
-            padding-bottom: max(10px, env(safe-area-inset-bottom));
+        input[type="text"] {
+            width: 100%; padding: 14px 16px;
+            background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 12px; color: var(--text); font-size: 16px; outline: none;
+        }
+        input[type="text"]:focus { border-color: var(--accent2); }
+        input[type="text"]::placeholder { color: var(--muted); }
+
+        .speed-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+        .speed-btn {
+            padding: 10px 4px; border: 1px solid rgba(255,255,255,0.12);
+            background: rgba(255,255,255,0.04); border-radius: 10px;
+            color: var(--muted); font-size: 13px; font-weight: 600; cursor: pointer;
+            transition: all 0.15s;
+        }
+        .speed-btn.active { background: var(--accent2); border-color: var(--accent2); color: #000; }
+
+        .menu-btns { display: flex; flex-direction: column; gap: 10px; }
+        .btn-primary {
+            width: 100%; padding: 16px; border: none; border-radius: 14px;
+            font-size: 17px; font-weight: 700; cursor: pointer;
+            background: linear-gradient(135deg, var(--accent2), #00b894);
+            color: #000; letter-spacing: 0.5px;
+            box-shadow: 0 4px 20px rgba(0, 212, 170, 0.3);
+        }
+        .btn-secondary {
+            width: 100%; padding: 14px; border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 14px; font-size: 15px; font-weight: 600; cursor: pointer;
+            background: transparent; color: var(--text);
+        }
+        .btn-secondary:disabled { opacity: 0.3; cursor: not-allowed; }
+
+        /* ── LEADERBOARD (menu page) ────────────── */
+        .lb-section { width: 100%; max-width: 360px; }
+        .lb-title { font-size: 13px; font-weight: 700; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 10px; text-align: center; }
+        .lb-list { display: flex; flex-direction: column; gap: 6px; }
+        .lb-item {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 10px 14px; background: var(--surface);
+            border: 1px solid rgba(255,255,255,0.06); border-radius: 10px;
+            font-size: 14px;
+        }
+        .lb-rank { font-weight: 800; margin-right: 10px; }
+        .lb-rank-1 { color: #FFD700; }
+        .lb-rank-2 { color: #C0C0C0; }
+        .lb-rank-3 { color: #CD7F32; }
+        .lb-score { font-weight: 700; color: var(--accent2); }
+
+        /* ── GAME PAGE ──────────────────────────── */
+        #gamePage {
+            padding: 0;
+            gap: 0;
+            justify-content: flex-start;
+            background: var(--bg);
         }
 
-        .container { 
-            background: #ffffff; 
-            padding: 16px; 
-            border-radius: 20px; 
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08); 
-            display: flex; 
-            flex-direction: column; 
-            align-items: center; 
-            gap: 12px; 
+        /* Top HUD */
+        .hud {
             width: 100%;
-            max-width: 500px;
+            padding: calc(var(--safe-top) + 10px) 16px 10px;
+            display: flex; justify-content: space-between; align-items: center;
+            background: var(--surface);
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+            flex-shrink: 0;
+        }
+        .hud-player { font-size: 14px; font-weight: 700; color: var(--accent2); }
+        .hud-score { font-size: 22px; font-weight: 800; }
+        .hud-actions { display: flex; gap: 8px; }
+        .hud-btn {
+            padding: 7px 14px; border-radius: 8px; font-size: 13px; font-weight: 700;
+            border: none; cursor: pointer;
+        }
+        .hud-pause { background: rgba(255,255,255,0.12); color: var(--text); }
+        .hud-exit { background: rgba(233,69,96,0.2); color: var(--accent); }
+
+        /* Canvas wrapper — fills remaining space above joystick */
+        .canvas-wrap {
+            flex: 1;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 10px;
+            position: relative;
+            overflow: hidden;
         }
 
-        h1 { font-size: 22px; font-weight: 700; color: #1d1d1f; }
-
-        .controls { display: flex; flex-direction: column; gap: 12px; width: 100%; }
-        .controls.hidden { display: none !important; }
-
-        .input-group { display: flex; flex-direction: column; gap: 6px; }
-        label { font-size: 13px; color: #6e6e73; font-weight: 600; }
-        input[type="text"] { padding: 12px; border: 1px solid #d2d2d7; border-radius: 10px; font-size: 15px; outline: none; }
-
-        /* 速度按钮调精简适配 4 档 */
-        .speed-options { display: flex; gap: 6px; }
-        .speed-btn { flex: 1; padding: 8px 0; border: 1px solid #d2d2d7; background: #fff; border-radius: 10px; cursor: pointer; font-size: 13px; font-weight: 500; }
-        .speed-btn.active { background: #0071e3; color: #fff; border-color: #0071e3; }
-
-        .btn-group { display: flex; gap: 10px; width: 100%; }
-        .btn { flex: 1; padding: 12px; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; text-align: center; }
-        .btn-start { background: #34c759; color: white; }
-        .btn-load { background: #5856d6; color: white; }
-        .btn-load:disabled { background: #c7c7cc; cursor: not-allowed; }
-
-        .game-area { display: flex; flex-direction: column; align-items: center; width: 100%; position: relative; }
-        .game-header { display: flex; justify-content: space-between; align-items: center; width: 100%; margin-bottom: 8px; }
-        .score-board { font-size: 15px; font-weight: 700; color: #1d1d1f; }
-        .btn-action { background: #0071e3; color: white; padding: 6px 12px; font-size: 13px; border-radius: 8px; border: none; cursor: pointer; font-weight: 600; }
-        .btn-danger { background: #ff3b30; }
-
-        .canvas-container { 
-            position: relative; 
-            width: 100%; 
-            aspect-ratio: 1 / 1; 
-            max-width: 400px;
-            border-radius: 12px; 
-            overflow: hidden; 
-            box-shadow: 0 4px 12px rgba(0,0,0,0.05); 
-        }
-
-        canvas { 
-            width: 100%; 
-            height: 100%; 
-            background-color: #fafafa; 
-            border: 2px solid #e5e5ea; 
-            border-radius: 12px; 
-            display: block; 
+        canvas {
+            display: block;
+            border-radius: 12px;
+            border: 2px solid rgba(255,255,255,0.08);
             touch-action: none;
-            transition: border-color 0.3s ease;
+            background: #0d0d1a;
+            /* Size set by JS to fill available space */
         }
 
         canvas.combo-glow {
             animation: comboPulse 0.6s ease-in-out 2;
         }
-
         @keyframes comboPulse {
-            0% { border-color: #ff2d55; box-shadow: 0 0 20px rgba(255, 45, 85, 0.6); }
-            50% { border-color: #ffcc00; box-shadow: 0 0 25px rgba(255, 204, 0, 0.8); }
-            100% { border-color: #e5e5ea; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+            0%   { border-color: var(--accent); box-shadow: 0 0 24px rgba(233,69,96,0.7); }
+            50%  { border-color: #ffcc00;       box-shadow: 0 0 30px rgba(255,204,0,0.8); }
+            100% { border-color: rgba(255,255,255,0.08); box-shadow: none; }
         }
 
-        .overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(4px); display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 16px; border-radius: 12px; z-index: 5; display: none; }
+        /* COMBO badge */
+        .combo-text {
+            position: absolute;
+            top: 38%; left: 50%;
+            transform: translate(-50%, -50%) scale(0.5);
+            font-size: 28px; font-weight: 900;
+            background: linear-gradient(45deg, #ff2d55, #ffcc00);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            pointer-events: none; opacity: 0; z-index: 10;
+            transition: all 0.45s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            white-space: nowrap;
+        }
+        .combo-text.show { opacity: 1; transform: translate(-50%, -70%) scale(1.15); }
 
-        /* 🕹️ 虚拟连滑控制摇杆底盘 */
+        /* Pause overlay */
+        .overlay {
+            position: absolute; inset: 0;
+            background: rgba(10,10,25,0.85); backdrop-filter: blur(6px);
+            display: none; flex-direction: column; justify-content: center; align-items: center; gap: 20px;
+            border-radius: 12px; z-index: 20;
+        }
+        .overlay h2 { font-size: 22px; font-weight: 800; }
+        .overlay-btn {
+            padding: 14px 36px; border-radius: 14px; font-size: 17px; font-weight: 700;
+            border: none; cursor: pointer;
+            background: var(--accent2); color: #000;
+        }
+
+        /* ── JOYSTICK ──────────────────────────── */
+        .joystick-area {
+            flex-shrink: 0;
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding-bottom: calc(var(--safe-bottom) + 14px);
+            padding-top: 6px;
+            background: var(--bg);
+        }
+
         .joystick-zone {
             position: relative;
-            width: 180px;
-            height: 180px;
-            margin-top: 10px;
-            background: #e5e5ea;
+            width: 200px; height: 200px;
+            background: var(--surface);
             border-radius: 50%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
+            border: 2px solid rgba(255,255,255,0.08);
+            display: flex; justify-content: center; align-items: center;
             touch-action: none;
-            box-shadow: inset 0 2px 8px rgba(0,0,0,0.1);
-        }
-
-        .joystick-handle {
-            position: absolute;
-            width: 70px;
-            height: 70px;
-            background: #0071e3;
-            border-radius: 50%;
-            box-shadow: 0 4px 10px rgba(0, 113, 227, 0.4);
-            transition: transform 0.05s ease-out;
-            pointer-events: none;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            color: #fff;
-            font-size: 20px;
-            font-weight: bold;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06);
         }
 
         .joystick-arrow {
             position: absolute;
-            font-size: 16px;
-            color: #8e8e93;
-            font-weight: bold;
-            pointer-events: none;
+            font-size: 14px; color: rgba(255,255,255,0.2); pointer-events: none;
         }
-        .arrow-up { top: 10px; }
-        .arrow-down { bottom: 10px; }
-        .arrow-left { left: 12px; }
-        .arrow-right { right: 12px; }
+        .arrow-up    { top: 12px; }
+        .arrow-down  { bottom: 12px; }
+        .arrow-left  { left: 14px; }
+        .arrow-right { right: 14px; }
 
-        .leaderboard { width: 100%; border-top: 1px solid #e5e5ea; padding-top: 12px; margin-top: 4px; }
-        .leaderboard h2 { font-size: 15px; margin-bottom: 8px; color: #1d1d1f; }
-        .leaderboard-list { list-style: none; display: flex; flex-direction: column; gap: 6px; }
-        .leaderboard-item { display: flex; justify-content: space-between; font-size: 13px; padding: 6px 12px; background: #f5f5f7; border-radius: 6px; }
-        .rank { font-weight: 700; color: #0071e3; margin-right: 8px; }
-
-        .combo-text {
+        .joystick-handle {
             position: absolute;
-            top: 40%;
-            left: 50%;
-            transform: translate(-50%, -50%) scale(0.5);
-            font-size: 32px;
-            font-weight: 900;
-            background: linear-gradient(45deg, #ff2d55, #ffcc00);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
+            width: 80px; height: 80px;
+            background: radial-gradient(circle at 35% 35%, #00e5b8, var(--accent2));
+            border-radius: 50%;
+            box-shadow: 0 4px 16px rgba(0,212,170,0.5);
+            transition: transform 0.05s ease-out;
             pointer-events: none;
-            opacity: 0;
-            z-index: 10;
-            transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-        }
-        .combo-text.show {
-            opacity: 1;
-            transform: translate(-50%, -70%) scale(1.2);
+            display: flex; justify-content: center; align-items: center;
+            color: rgba(0,0,0,0.5); font-size: 22px;
         }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <h1>贪吃蛇 PWA 终极版</h1>
+<!-- ═══ MENU PAGE ═══════════════════════════ -->
+<div class="page active" id="menuPage">
+    <div class="logo">🐍</div>
+    <div class="game-title">贪吃蛇</div>
 
-    <div class="controls" id="menu">
-        <div class="input-group">
-            <label for="playerName">玩家名字</label>
+    <div class="menu-card">
+        <div>
+            <div class="field-label">玩家名字</div>
             <input type="text" id="playerName" placeholder="输入名字" maxlength="10">
         </div>
-        <div class="input-group">
-            <label>速度设置</label>
-            <div class="speed-options">
+        <div>
+            <div class="field-label">速度</div>
+            <div class="speed-grid">
                 <button class="speed-btn" data-speed="220">极慢</button>
-                <button class="speed-btn" data-speed="150">慢</button>
-                <button class="speed-btn active" data-speed="100">中</button>
-                <button class="speed-btn" data-speed="60">快</button>
+                <button class="speed-btn" data-speed="150">慢速</button>
+                <button class="speed-btn active" data-speed="100">中速</button>
+                <button class="speed-btn" data-speed="60">快速</button>
             </div>
         </div>
-        <div class="btn-group">
-            <button class="btn btn-start" id="startBtn">开始新游戏</button>
-            <button class="btn btn-load" id="loadBtn" disabled>读取存档</button>
+        <div class="menu-btns">
+            <button class="btn-primary" id="startBtn">开始游戏</button>
+            <button class="btn-secondary" id="loadBtn" disabled>读取存档</button>
         </div>
     </div>
 
-    <div class="game-area" id="gameArea" style="display: none;">
-        <div class="combo-text" id="comboText">🔥 COMBO x5!</div>
-        <div class="game-header">
-            <div class="score-board"><span id="displayName" style="color: #0071e3;">-</span>: <span id="currentScore">0</span> 分</div>
-            <div>
-                <button class="btn-action" id="pauseBtn">暂停</button>
-                <button class="btn-action btn-danger" id="exitBtn">退出</button>
-            </div>
-        </div>
+    <div class="lb-section">
+        <div class="lb-title">🏆 历史最佳</div>
+        <ul class="lb-list" id="leaderboardList"></ul>
+    </div>
+</div>
 
-        <div class="canvas-container">
-            <!-- 🖼️ 扩展画布大小至 800x800 (原来的200%) -->
-            <canvas id="gameCanvas" width="800" height="800"></canvas>
-            <div class="overlay" id="pauseOverlay">
-                <h2>游戏已暂停</h2>
-                <button class="btn-action" id="resumeBtn" style="padding: 10px 24px; font-size: 15px;">继续游戏</button>
-            </div>
-        </div>
+<!-- ═══ GAME PAGE ════════════════════════════ -->
+<div class="page" id="gamePage">
 
-        <!-- 🕹️ 连续拖动感应摇杆区 -->
+    <!-- HUD -->
+    <div class="hud">
+        <div>
+            <div class="hud-player" id="displayName">玩家</div>
+            <div class="hud-score"><span id="currentScore">0</span> 分</div>
+        </div>
+        <div class="hud-actions">
+            <button class="hud-btn hud-pause" id="pauseBtn">暂停</button>
+            <button class="hud-btn hud-exit"  id="exitBtn">退出</button>
+        </div>
+    </div>
+
+    <!-- Canvas -->
+    <div class="canvas-wrap" id="canvasWrap">
+        <div class="combo-text" id="comboText">🔥 COMBO!</div>
+        <canvas id="gameCanvas"></canvas>
+        <div class="overlay" id="pauseOverlay">
+            <h2>⏸ 已暂停</h2>
+            <button class="overlay-btn" id="resumeBtn">继续游戏</button>
+        </div>
+    </div>
+
+    <!-- Joystick -->
+    <div class="joystick-area">
         <div class="joystick-zone" id="joystickZone">
             <span class="joystick-arrow arrow-up">▲</span>
             <span class="joystick-arrow arrow-down">▼</span>
@@ -222,373 +320,422 @@
             <div class="joystick-handle" id="joystickHandle">✽</div>
         </div>
     </div>
-
-    <div class="leaderboard">
-        <h2>🏆 历史 Top 3</h2>
-        <ul class="leaderboard-list" id="leaderboardList"></ul>
-    </div>
 </div>
 
 <script>
-    const canvas = document.getElementById('gameCanvas');
-    const ctx = canvas.getContext('2d');
-    const scoreEl = document.getElementById('currentScore');
-    const displayNameEl = document.getElementById('displayName');
-    const nameInput = document.getElementById('playerName');
-    const startBtn = document.getElementById('startBtn');
-    const loadBtn = document.getElementById('loadBtn');
-    const pauseBtn = document.getElementById('pauseBtn');
-    const resumeBtn = document.getElementById('resumeBtn');
-    const exitBtn = document.getElementById('exitBtn');
-    const speedBtns = document.querySelectorAll('.speed-btn');
-    const leaderboardList = document.getElementById('leaderboardList');
-    const menuEl = document.getElementById('menu');
-    const gameAreaEl = document.getElementById('gameArea');
-    const pauseOverlay = document.getElementById('pauseOverlay');
-    const comboText = document.getElementById('comboText');
+// ── ELEMENTS ──────────────────────────────────────
+const canvas       = document.getElementById('gameCanvas');
+const ctx          = canvas.getContext('2d');
+const scoreEl      = document.getElementById('currentScore');
+const displayNameEl= document.getElementById('displayName');
+const nameInput    = document.getElementById('playerName');
+const startBtn     = document.getElementById('startBtn');
+const loadBtn      = document.getElementById('loadBtn');
+const pauseBtn     = document.getElementById('pauseBtn');
+const resumeBtn    = document.getElementById('resumeBtn');
+const exitBtn      = document.getElementById('exitBtn');
+const speedBtns    = document.querySelectorAll('.speed-btn');
+const lbList       = document.getElementById('leaderboardList');
+const menuPage     = document.getElementById('menuPage');
+const gamePage     = document.getElementById('gamePage');
+const canvasWrap   = document.getElementById('canvasWrap');
+const pauseOverlay = document.getElementById('pauseOverlay');
+const comboText    = document.getElementById('comboText');
+const joystickZone = document.getElementById('joystickZone');
+const joystickHandle = document.getElementById('joystickHandle');
 
-    // 摇杆元素
-    const joystickZone = document.getElementById('joystickZone');
-    const joystickHandle = document.getElementById('joystickHandle');
+// ── CANVAS SIZE CALIBRATION ───────────────────────
+// Dynamically compute canvas px size so it fills the available space
+// without overflow, then derive gridSize and tileCount.
+let CANVAS_PX = 320; // fallback, recalculated below
+let gridSize   = 20;
+let tileCount  = 16;
 
-    const gridSize = 20; 
-    const tileCount = canvas.width / gridSize; // 现在是 800 / 20 = 40 格
-    const rainbowColors = ['#ff2d55', '#ff9500', '#ffcc00', '#34c759', '#007aff', '#af52de'];
-    const headThemes = ['#0071e3', '#af52de', '#ff2d55', '#5856d6', '#ff9500', '#00c7be'];
+function calibrateCanvas() {
+    // The game page isn't visible yet; temporarily show it hidden to measure
+    const JOYSTICK_H = 228; // joystick-area approx height
+    const HUD_H = 72;
+    const safeTop    = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--safe-top') || '0') || 0;
+    const safeBottom = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--safe-bottom') || '0') || 0;
 
-    let snake = [], food = { x: 0, y: 0 }, dx = gridSize, dy = 0, score = 0, gameInterval = null;
-    let speed = 100, isPaused = false, gameRunning = false, currentPlayerName = '';
-    let playerChar = '🐍';
-    let foodEatenCount = 0;
-    let isComboMode = false;
-    let currentHeadColor = '#0071e3';
+    const totalH = window.innerHeight;
+    const totalW = window.innerWidth;
 
-    checkSavedGame();
-    updateLeaderboardUI();
+    const availH = totalH - HUD_H - JOYSTICK_H - 20;  // 20px padding
+    const availW = totalW - 32; // 16px each side
 
-    speedBtns.forEach(btn => {
-        btn.addEventListener('click', () => {
-            speedBtns.forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            speed = parseInt(btn.dataset.speed);
-        });
+    const side = Math.min(availH, availW, 480); // cap at 480px
+    CANVAS_PX = side;
+
+    // Choose grid size: aim for 20 tiles (multiples of 10 preferred)
+    // gridSize must divide CANVAS_PX evenly
+    const targetTiles = 20;
+    gridSize = Math.floor(CANVAS_PX / targetTiles);
+    // snap to clean multiples
+    if (gridSize < 12) gridSize = 12;
+    if (gridSize > 28) gridSize = 28;
+    tileCount = Math.floor(CANVAS_PX / gridSize);
+    CANVAS_PX = tileCount * gridSize; // exact fit
+
+    canvas.width  = CANVAS_PX;
+    canvas.height = CANVAS_PX;
+    canvas.style.width  = CANVAS_PX + 'px';
+    canvas.style.height = CANVAS_PX + 'px';
+}
+
+calibrateCanvas();
+window.addEventListener('resize', () => {
+    calibrateCanvas();
+    if (gameRunning) draw();
+});
+
+// ── GAME STATE ────────────────────────────────────
+const rainbowColors = ['#ff2d55','#ff9500','#ffcc00','#34c759','#007aff','#af52de'];
+const headThemes    = ['#00d4aa','#af52de','#ff2d55','#5856d6','#ff9500','#00c7be'];
+
+let snake = [], food = {x:0, y:0}, dx = gridSize, dy = 0;
+let score = 0, gameInterval = null;
+let speed = 100, isPaused = false, gameRunning = false;
+let currentPlayerName = '', playerChar = '🐍';
+let foodEatenCount = 0, isComboMode = false;
+let currentHeadColor = '#00d4aa';
+
+// ── INIT ──────────────────────────────────────────
+checkSavedGame();
+updateLeaderboardUI();
+
+// ── SPEED BUTTONS ─────────────────────────────────
+speedBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+        speedBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        speed = parseInt(btn.dataset.speed);
     });
+});
 
-    startBtn.addEventListener('click', () => initAndStartGame(false));
-    loadBtn.addEventListener('click', loadSavedGame);
-    pauseBtn.addEventListener('click', togglePause);
-    resumeBtn.addEventListener('click', togglePause);
-    exitBtn.addEventListener('click', exitGame);
+// ── PAGE SWITCHING ────────────────────────────────
+function showPage(id) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+}
 
-    document.addEventListener('keydown', handleKeyInput);
+// ── BUTTON EVENTS ─────────────────────────────────
+startBtn.addEventListener('click',  () => initAndStartGame(false));
+loadBtn.addEventListener('click',   loadSavedGame);
+pauseBtn.addEventListener('click',  togglePause);
+resumeBtn.addEventListener('click', togglePause);
+exitBtn.addEventListener('click',   exitGame);
+document.addEventListener('keydown', handleKeyInput);
 
-    // 🕹️ 核心升级：滑动连续控制方向逻辑 (连续摇杆)
-    let joystickActive = false;
-    let joystickCenterX = 0;
-    let joystickCenterY = 0;
+// ── JOYSTICK ──────────────────────────────────────
+let joystickActive = false, jcx = 0, jcy = 0;
 
-    function handleJoystickMove(clientX, clientY) {
-        if (!gameRunning || isPaused) return;
+function handleJoystickMove(cx, cy) {
+    if (!gameRunning || isPaused) return;
+    const dx2 = cx - jcx, dy2 = cy - jcy;
+    const dist = Math.hypot(dx2, dy2);
+    const maxR = 55;
+    const angle = Math.atan2(dy2, dx2);
+    const d = Math.min(dist, maxR);
+    joystickHandle.style.transform = `translate(${Math.cos(angle)*d}px, ${Math.sin(angle)*d}px)`;
 
-        const deltaX = clientX - joystickCenterX;
-        const deltaY = clientY - joystickCenterY;
-        const distance = Math.hypot(deltaX, deltaY);
-        const maxRadius = 45; // 限制摇杆手柄偏离最大距离
-
-        // 移动手柄视觉反馈
-        const angle = Math.atan2(deltaY, deltaX);
-        const moveDist = Math.min(distance, maxRadius);
-        const handleX = Math.cos(angle) * moveDist;
-        const handleY = Math.sin(angle) * moveDist;
-        joystickHandle.style.transform = `translate(${handleX}px, ${handleY}px)`;
-
-        // 触发转向（设置死区 15px 防止过于敏感）
-        if (distance > 15) {
-            if (Math.abs(deltaX) > Math.abs(deltaY)) {
-                if (deltaX > 0) setDirection(gridSize, 0);
-                else setDirection(-gridSize, 0);
-            } else {
-                if (deltaY > 0) setDirection(0, gridSize);
-                else setDirection(0, -gridSize);
-            }
-        }
-    }
-
-    function resetJoystick() {
-        joystickActive = false;
-        joystickHandle.style.transform = `translate(0px, 0px)`;
-    }
-
-    // 摇杆触摸事件绑 (Touch)
-    joystickZone.addEventListener('touchstart', (e) => {
-        joystickActive = true;
-        const rect = joystickZone.getBoundingClientRect();
-        joystickCenterX = rect.left + rect.width / 2;
-        joystickCenterY = rect.top + rect.height / 2;
-        handleJoystickMove(e.touches[0].clientX, e.touches[0].clientY);
-    }, { passive: false });
-
-    joystickZone.addEventListener('touchmove', (e) => {
-        if (!joystickActive) return;
-        e.preventDefault();
-        handleJoystickMove(e.touches[0].clientX, e.touches[0].clientY);
-    }, { passive: false });
-
-    joystickZone.addEventListener('touchend', resetJoystick);
-    joystickZone.addEventListener('touchcancel', resetJoystick);
-
-    // 摇杆鼠标事件绑定 (Mouse 兼容 PC 拖拽体验)
-    joystickZone.addEventListener('mousedown', (e) => {
-        joystickActive = true;
-        const rect = joystickZone.getBoundingClientRect();
-        joystickCenterX = rect.left + rect.width / 2;
-        joystickCenterY = rect.top + rect.height / 2;
-        handleJoystickMove(e.clientX, e.clientY);
-    });
-
-    document.addEventListener('mousemove', (e) => {
-        if (joystickActive) {
-            handleJoystickMove(e.clientX, e.clientY);
-        }
-    });
-
-    document.addEventListener('mouseup', () => {
-        if (joystickActive) resetJoystick();
-    });
-
-
-    function setDirection(newDx, newDy) {
-        if (!gameRunning || isPaused) return;
-        if (newDx === -dx && newDx !== 0) return;
-        if (newDy === -dy && newDy !== 0) return;
-        dx = newDx;
-        dy = newDy;
-    }
-
-    function handleKeyInput(e) {
-        const key = e.key;
-        if (key === 'ArrowLeft' || key === 'a') setDirection(-gridSize, 0);
-        else if (key === 'ArrowUp' || key === 'w') setDirection(0, -gridSize);
-        else if (key === 'ArrowRight' || key === 'd') setDirection(gridSize, 0);
-        else if (key === 'ArrowDown' || key === 's') setDirection(0, gridSize);
-    }
-
-    function checkSavedGame() {
-        const saved = localStorage.getItem('snake_saved_game');
-        loadBtn.disabled = !saved;
-    }
-
-    function initAndStartGame(isLoaded = false) {
-        if (!isLoaded) {
-            const name = nameInput.value.trim() || '玩家';
-            currentPlayerName = name;
-            playerChar = Array.from(name)[0] || '🐍';
-
-            // 初始在 800x800 中心生成
-            const mid = Math.floor(tileCount / 2) * gridSize;
-            snake = [{ x: mid, y: mid }, { x: mid - gridSize, y: mid }, { x: mid - 2 * gridSize, y: mid }];
-            dx = gridSize; dy = 0; score = 0; foodEatenCount = 0; currentHeadColor = '#0071e3';
-            spawnFood();
-        }
-
-        menuEl.classList.add('hidden');
-        gameAreaEl.style.display = 'flex';
-        displayNameEl.textContent = currentPlayerName;
-        scoreEl.textContent = score;
-        isPaused = false;
-        pauseOverlay.style.display = 'none';
-
-        if (gameInterval) clearInterval(gameInterval);
-        gameRunning = true;
-        gameInterval = setInterval(gameLoop, speed);
-        draw();
-    }
-
-    function gameLoop() {
-        if (!gameRunning || isPaused) return;
-        moveSnake();
-        if (checkCollision()) { handleGameOver(); return; }
-        draw();
-    }
-
-    function moveSnake() {
-        const head = { x: snake[0].x + dx, y: snake[0].y + dy };
-        snake.unshift(head);
-        
-        if (head.x === food.x && head.y === food.y) {
-            score += 10;
-            foodEatenCount += 1;
-            scoreEl.textContent = score;
-
-            if (foodEatenCount % 5 === 0) {
-                triggerComboEffect();
-            }
-
-            spawnFood();
+    if (dist > 18) {
+        if (Math.abs(dx2) > Math.abs(dy2)) {
+            setDirection(dx2 > 0 ? gridSize : -gridSize, 0);
         } else {
-            snake.pop();
+            setDirection(0, dy2 > 0 ? gridSize : -gridSize);
         }
     }
+}
 
-    function triggerComboEffect() {
-        isComboMode = true;
-        canvas.classList.add('combo-glow');
-        comboText.classList.add('show');
+function resetJoystick() {
+    joystickActive = false;
+    joystickHandle.style.transform = 'translate(0,0)';
+}
 
-        currentHeadColor = headThemes[Math.floor(Math.random() * headThemes.length)];
+joystickZone.addEventListener('touchstart', e => {
+    joystickActive = true;
+    const r = joystickZone.getBoundingClientRect();
+    jcx = r.left + r.width/2; jcy = r.top + r.height/2;
+    handleJoystickMove(e.touches[0].clientX, e.touches[0].clientY);
+    e.preventDefault();
+}, { passive: false });
 
-        setTimeout(() => {
-            canvas.classList.remove('combo-glow');
-            comboText.classList.remove('show');
-            isComboMode = false;
-        }, 1200);
-    }
+joystickZone.addEventListener('touchmove', e => {
+    if (!joystickActive) return;
+    e.preventDefault();
+    handleJoystickMove(e.touches[0].clientX, e.touches[0].clientY);
+}, { passive: false });
 
-    function checkCollision() {
-        const head = snake[0];
-        if (head.x < 0 || head.x >= canvas.width || head.y < 0 || head.y >= canvas.height) return true;
-        for (let i = 1; i < snake.length; i++) {
-            if (head.x === snake[i].x && head.y === snake[i].y) return true;
-        }
-        return false;
-    }
+joystickZone.addEventListener('touchend',   resetJoystick);
+joystickZone.addEventListener('touchcancel',resetJoystick);
 
-    function spawnFood() {
-        food.x = Math.floor(Math.random() * tileCount) * gridSize;
-        food.y = Math.floor(Math.random() * tileCount) * gridSize;
-    }
+joystickZone.addEventListener('mousedown', e => {
+    joystickActive = true;
+    const r = joystickZone.getBoundingClientRect();
+    jcx = r.left + r.width/2; jcy = r.top + r.height/2;
+    handleJoystickMove(e.clientX, e.clientY);
+});
+document.addEventListener('mousemove', e => { if (joystickActive) handleJoystickMove(e.clientX, e.clientY); });
+document.addEventListener('mouseup',   () => { if (joystickActive) resetJoystick(); });
 
-    function draw() {
-        ctx.fillStyle = '#fafafa';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        
-        ctx.fillStyle = '#ff3b30';
-        ctx.beginPath();
-        ctx.arc(food.x + gridSize / 2, food.y + gridSize / 2, gridSize / 2 - 2, 0, Math.PI * 2);
-        ctx.fill();
+// ── DIRECTION ─────────────────────────────────────
+function setDirection(ndx, ndy) {
+    if (!gameRunning || isPaused) return;
+    if (ndx === -dx && ndx !== 0) return;
+    if (ndy === -dy && ndy !== 0) return;
+    dx = ndx; dy = ndy;
+}
 
-        snake.forEach((segment, index) => {
-            if (index === 0) {
-                ctx.fillStyle = currentHeadColor;
-                ctx.fillRect(segment.x + 1, segment.y + 1, gridSize - 2, gridSize - 2);
+function handleKeyInput(e) {
+    const k = e.key;
+    if (k==='ArrowLeft'||k==='a')  setDirection(-gridSize, 0);
+    if (k==='ArrowUp'||k==='w')    setDirection(0, -gridSize);
+    if (k==='ArrowRight'||k==='d') setDirection(gridSize, 0);
+    if (k==='ArrowDown'||k==='s')  setDirection(0, gridSize);
+    if (k===' ') togglePause();
+}
 
-                ctx.fillStyle = '#ffffff';
-                ctx.font = 'bold 12px -apple-system, sans-serif';
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillText(playerChar, segment.x + gridSize / 2, segment.y + gridSize / 2 + 1);
-            } else {
-                if (isComboMode) {
-                    ctx.fillStyle = rainbowColors[index % rainbowColors.length];
-                } else {
-                    ctx.fillStyle = '#34c759';
-                }
-                ctx.fillRect(segment.x + 1, segment.y + 1, gridSize - 2, gridSize - 2);
-            }
-        });
-    }
+// ── GAME INIT ─────────────────────────────────────
+function initAndStartGame(isLoaded = false) {
+    if (!isLoaded) {
+        calibrateCanvas(); // re-measure when entering game page
+        const name = nameInput.value.trim() || '玩家';
+        currentPlayerName = name;
+        playerChar = Array.from(name)[0] || '🐍';
 
-    function togglePause() {
-        if (!gameRunning) return;
-        isPaused = !isPaused;
-        pauseOverlay.style.display = isPaused ? 'flex' : 'none';
-        pauseBtn.textContent = isPaused ? '继续' : '暂停';
-
-        if (isPaused) autoSaveGame();
-    }
-
-    function autoSaveGame() {
-        const saveData = {
-            snake, food, dx, dy, score, speed,
-            currentPlayerName, playerChar, foodEatenCount, currentHeadColor
-        };
-        localStorage.setItem('snake_saved_game', JSON.stringify(saveData));
-        checkSavedGame();
-    }
-
-    // 💾 读档并将蛇头部置到画布 800x800 正中心
-    function loadSavedGame() {
-        const saved = localStorage.getItem('snake_saved_game');
-        if (!saved) return;
-        const data = JSON.parse(saved);
-        
-        score = data.score;
-        speed = data.speed || 100;
-        currentPlayerName = data.currentPlayerName;
-        playerChar = data.playerChar || Array.from(currentPlayerName)[0] || '🐍';
-        foodEatenCount = data.foodEatenCount || 0;
-        currentHeadColor = data.currentHeadColor || '#0071e3';
-
-        // 计算 800x800 正中心
-        const centerX = Math.floor(tileCount / 2) * gridSize;
-        const centerY = Math.floor(tileCount / 2) * gridSize;
-        const oldHead = data.snake[0] || { x: centerX, y: centerY };
-
-        const offsetX = centerX - oldHead.x;
-        const offsetY = centerY - oldHead.y;
-
-        snake = data.snake.map(seg => ({
-            x: seg.x + offsetX,
-            y: seg.y + offsetY
-        }));
-
-        dx = data.dx;
-        dy = data.dy;
-
+        const mid = Math.floor(tileCount / 2) * gridSize;
+        snake = [
+            { x: mid,               y: mid },
+            { x: mid - gridSize,    y: mid },
+            { x: mid - 2*gridSize,  y: mid },
+        ];
+        dx = gridSize; dy = 0; score = 0;
+        foodEatenCount = 0; currentHeadColor = '#00d4aa';
         spawnFood();
-        initAndStartGame(true);
     }
 
-    function handleGameOver() {
+    showPage('gamePage');
+    displayNameEl.textContent = currentPlayerName;
+    scoreEl.textContent = score;
+    isPaused = false;
+    pauseOverlay.style.display = 'none';
+    pauseBtn.textContent = '暂停';
+
+    if (gameInterval) clearInterval(gameInterval);
+    gameRunning = true;
+    gameInterval = setInterval(gameLoop, speed);
+    draw();
+}
+
+// ── GAME LOOP ─────────────────────────────────────
+function gameLoop() {
+    if (!gameRunning || isPaused) return;
+    moveSnake();
+    if (checkCollision()) { handleGameOver(); return; }
+    draw();
+}
+
+function moveSnake() {
+    const head = { x: snake[0].x + dx, y: snake[0].y + dy };
+    snake.unshift(head);
+    if (head.x === food.x && head.y === food.y) {
+        score += 10;
+        foodEatenCount++;
+        scoreEl.textContent = score;
+        if (foodEatenCount % 5 === 0) triggerComboEffect();
+        spawnFood();
+    } else {
+        snake.pop();
+    }
+}
+
+function checkCollision() {
+    const h = snake[0];
+    if (h.x < 0 || h.x >= CANVAS_PX || h.y < 0 || h.y >= CANVAS_PX) return true;
+    for (let i = 1; i < snake.length; i++)
+        if (h.x === snake[i].x && h.y === snake[i].y) return true;
+    return false;
+}
+
+function spawnFood() {
+    food.x = Math.floor(Math.random() * tileCount) * gridSize;
+    food.y = Math.floor(Math.random() * tileCount) * gridSize;
+}
+
+// ── DRAW ──────────────────────────────────────────
+function draw() {
+    // Background with subtle grid
+    ctx.fillStyle = '#0d0d1a';
+    ctx.fillRect(0, 0, CANVAS_PX, CANVAS_PX);
+
+    // Subtle grid lines
+    ctx.strokeStyle = 'rgba(255,255,255,0.03)';
+    ctx.lineWidth = 0.5;
+    for (let i = 0; i <= tileCount; i++) {
+        const p = i * gridSize;
+        ctx.beginPath(); ctx.moveTo(p, 0); ctx.lineTo(p, CANVAS_PX); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(0, p); ctx.lineTo(CANVAS_PX, p); ctx.stroke();
+    }
+
+    // Food — glowing circle
+    const fx = food.x + gridSize/2, fy = food.y + gridSize/2, fr = gridSize/2 - 2;
+    const foodGrad = ctx.createRadialGradient(fx-1, fy-2, 1, fx, fy, fr);
+    foodGrad.addColorStop(0, '#ff6b8a');
+    foodGrad.addColorStop(1, '#e94560');
+    ctx.fillStyle = foodGrad;
+    ctx.shadowColor = '#e94560'; ctx.shadowBlur = 10;
+    ctx.beginPath(); ctx.arc(fx, fy, fr, 0, Math.PI*2); ctx.fill();
+    ctx.shadowBlur = 0;
+
+    // Snake
+    const r = Math.max(3, gridSize * 0.25);
+    snake.forEach((seg, index) => {
+        const x = seg.x + 1, y = seg.y + 1, w = gridSize - 2, h2 = gridSize - 2;
+
+        if (index === 0) {
+            // Head with gradient
+            const hg = ctx.createLinearGradient(x, y, x+w, y+h2);
+            hg.addColorStop(0, currentHeadColor);
+            hg.addColorStop(1, '#006655');
+            ctx.fillStyle = hg;
+            ctx.shadowColor = currentHeadColor; ctx.shadowBlur = 8;
+            roundRect(ctx, x, y, w, h2, r);
+            ctx.shadowBlur = 0;
+
+            // Player char
+            ctx.fillStyle = 'rgba(255,255,255,0.9)';
+            ctx.font = `bold ${Math.max(10, gridSize - 6)}px -apple-system, sans-serif`;
+            ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            ctx.fillText(playerChar, seg.x + gridSize/2, seg.y + gridSize/2 + 1);
+        } else {
+            const color = isComboMode
+                ? rainbowColors[index % rainbowColors.length]
+                : (index < 3 ? '#00d4aa' : '#0fba8a');
+            const opacity = Math.max(0.4, 1 - index * 0.015);
+            ctx.globalAlpha = opacity;
+            ctx.fillStyle = color;
+            roundRect(ctx, x, y, w, h2, r);
+            ctx.globalAlpha = 1;
+        }
+    });
+}
+
+function roundRect(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x+w, y, x+w, y+h, r);
+    ctx.arcTo(x+w, y+h, x, y+h, r);
+    ctx.arcTo(x, y+h, x, y, r);
+    ctx.arcTo(x, y, x+w, y, r);
+    ctx.closePath();
+    ctx.fill();
+}
+
+// ── COMBO ─────────────────────────────────────────
+function triggerComboEffect() {
+    isComboMode = true;
+    canvas.classList.add('combo-glow');
+    comboText.textContent = `🔥 COMBO x${Math.floor(foodEatenCount/5)}!`;
+    comboText.classList.add('show');
+    currentHeadColor = headThemes[Math.floor(Math.random() * headThemes.length)];
+    setTimeout(() => {
+        canvas.classList.remove('combo-glow');
+        comboText.classList.remove('show');
+        isComboMode = false;
+    }, 1200);
+}
+
+// ── PAUSE / EXIT ──────────────────────────────────
+function togglePause() {
+    if (!gameRunning) return;
+    isPaused = !isPaused;
+    pauseOverlay.style.display = isPaused ? 'flex' : 'none';
+    pauseBtn.textContent = isPaused ? '继续' : '暂停';
+    if (isPaused) autoSaveGame();
+}
+
+function exitGame() {
+    if (confirm('退出游戏？当前进度将自动保存。')) {
+        autoSaveGame();
         gameRunning = false;
         clearInterval(gameInterval);
-        saveScore(currentPlayerName, score);
+        showPage('menuPage');
         updateLeaderboardUI();
-
-        setTimeout(() => {
-            const shouldSave = confirm(`💥 游戏结束！${currentPlayerName} 得分: ${score} 分。\n\n需要保存当前这局进度作为可读取存档吗？`);
-            if (shouldSave) {
-                autoSaveGame();
-                alert('存档已保存！可以在主菜单点“读取存档”继续。');
-            }
-            menuEl.classList.remove('hidden');
-            gameAreaEl.style.display = 'none';
-        }, 100);
     }
+}
 
-    function exitGame() {
-        if (confirm('确定退出当前游戏？退出时会自动为你保存当前进度。')) {
+// ── GAME OVER ─────────────────────────────────────
+function handleGameOver() {
+    gameRunning = false;
+    clearInterval(gameInterval);
+    saveScore(currentPlayerName, score);
+    updateLeaderboardUI();
+    setTimeout(() => {
+        const shouldSave = confirm(`💥 游戏结束！\n${currentPlayerName} 得了 ${score} 分\n\n保存存档吗？`);
+        if (shouldSave) {
             autoSaveGame();
-            gameRunning = false;
-            clearInterval(gameInterval);
-            menuEl.classList.remove('hidden');
-            gameAreaEl.style.display = 'none';
         }
-    }
+        showPage('menuPage');
+        updateLeaderboardUI();
+    }, 120);
+}
 
-    function saveScore(name, score) {
-        let scores = JSON.parse(localStorage.getItem('snake_top3')) || [];
-        scores.push({ name, score });
-        scores.sort((a, b) => b.score - a.score);
-        localStorage.setItem('snake_top3', JSON.stringify(scores.slice(0, 3)));
-    }
+// ── SAVE / LOAD ───────────────────────────────────
+function checkSavedGame() {
+    loadBtn.disabled = !localStorage.getItem('snake_saved_game');
+}
 
-    function updateLeaderboardUI() {
-        const scores = JSON.parse(localStorage.getItem('snake_top3')) || [];
-        leaderboardList.innerHTML = scores.length === 0 ? '<li class="leaderboard-item" style="justify-content:center;">暂无纪录</li>' : '';
-        scores.forEach((item, index) => {
-            const li = document.createElement('li');
-            li.className = 'leaderboard-item';
-            li.innerHTML = `<span><span class="rank">${index + 1}</span>${item.name}</span><strong>${item.score} 分</strong>`;
-            leaderboardList.appendChild(li);
-        });
-    }
+function autoSaveGame() {
+    localStorage.setItem('snake_saved_game', JSON.stringify({
+        snake, food, dx, dy, score, speed,
+        currentPlayerName, playerChar, foodEatenCount, currentHeadColor
+    }));
+    checkSavedGame();
+}
 
-    if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-            navigator.serviceWorker.register('./sw.js');
-        });
-    }
+function loadSavedGame() {
+    const saved = localStorage.getItem('snake_saved_game');
+    if (!saved) return;
+    const d = JSON.parse(saved);
+    score = d.score; speed = d.speed || 100;
+    currentPlayerName = d.currentPlayerName;
+    playerChar = d.playerChar || Array.from(currentPlayerName)[0] || '🐍';
+    foodEatenCount = d.foodEatenCount || 0;
+    currentHeadColor = d.currentHeadColor || '#00d4aa';
+
+    calibrateCanvas();
+    const centerX = Math.floor(tileCount / 2) * gridSize;
+    const centerY = Math.floor(tileCount / 2) * gridSize;
+    const oldHead = d.snake[0] || { x: centerX, y: centerY };
+    const ox = centerX - oldHead.x, oy = centerY - oldHead.y;
+    snake = d.snake.map(s => ({ x: s.x + ox, y: s.y + oy }));
+    dx = d.dx; dy = d.dy;
+    spawnFood();
+    initAndStartGame(true);
+}
+
+// ── SCORE / LEADERBOARD ───────────────────────────
+function saveScore(name, score) {
+    let scores = JSON.parse(localStorage.getItem('snake_top3')) || [];
+    scores.push({ name, score });
+    scores.sort((a, b) => b.score - a.score);
+    localStorage.setItem('snake_top3', JSON.stringify(scores.slice(0, 3)));
+}
+
+function updateLeaderboardUI() {
+    const scores = JSON.parse(localStorage.getItem('snake_top3')) || [];
+    const medals = ['lb-rank-1','lb-rank-2','lb-rank-3'];
+    lbList.innerHTML = scores.length === 0
+        ? '<li class="lb-item" style="justify-content:center;color:#8892a4;">暂无记录</li>'
+        : '';
+    scores.forEach((item, i) => {
+        const li = document.createElement('li');
+        li.className = 'lb-item';
+        li.innerHTML = `<span><span class="lb-rank ${medals[i]}">${['🥇','🥈','🥉'][i]}</span>${item.name}</span><span class="lb-score">${item.score} 分</span>`;
+        lbList.appendChild(li);
+    });
+}
 </script>
 </body>
 </html>
