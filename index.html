@@ -261,7 +261,7 @@ calibrateCanvas();
 window.addEventListener('resize', () => { calibrateCanvas(); });
 
 // ── 360° SNAKE CORE ───────────────────────
-const SNAKE_SPEED_DEFAULT = 3.5;   // 默认中速
+const SNAKE_SPEED_DEFAULT = 3.5;   
 const SNAKE_RADIUS = 5.6;        
 const FOOD_RADIUS  = 9;
 const SEGMENT_LEN  = SNAKE_RADIUS * 2.2; 
@@ -282,11 +282,7 @@ let currentPlayerName = '', playerChar = '🐍';
 let gameRunning = false, isPaused = false;
 let rafId = null;
 let lastTime = 0;
-
-// Joystick state
-let joystickActive = false;
-let targetAngle    = 0;   
-let hasJoystickInput = false;  
+let invincibleTimer = 0; // 🛡️ 读档无敌保护机制
 
 // ── SPEED BUTTONS ─────────────────────────
 speedBtns.forEach(btn => btn.addEventListener('click', () => {
@@ -299,6 +295,9 @@ speedBtns.forEach(btn => btn.addEventListener('click', () => {
 function showPage(id) {
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
     document.getElementById(id).classList.add('active');
+    if (id === 'menuPage') {
+        checkSavedGame(); // 返回主菜单时强制刷新读档按钮状态
+    }
 }
 
 // ── BUTTONS ───────────────────────────────
@@ -308,7 +307,10 @@ pauseBtn.addEventListener('click', togglePause);
 resumeBtn.addEventListener('click', togglePause);
 exitBtn.addEventListener('click',  exitGame);
 document.addEventListener('keydown', handleKey);
-checkSavedGame(); updateLeaderboardUI();
+
+// 网页加载时立即进行检查
+checkSavedGame(); 
+updateLeaderboardUI();
 
 // ── JOYSTICK ──────────────────────────────
 let jcx = 0, jcy = 0;
@@ -405,7 +407,7 @@ function handleKey(e) {
 // ── INIT GAME ─────────────────────────────
 function initGame(isLoaded) {
     showPage('gamePage');
-    displayNameEl.textContent = currentPlayerName;
+    displayNameEl.textContent = currentPlayerName || '玩家';
     scoreEl.textContent = score;
     isPaused = false;
     pauseOverlay.style.display = 'none';
@@ -422,6 +424,7 @@ function initGame(isLoaded) {
             score = 0; foodEatenCount = 0;
             scoreEl.textContent = 0;
             currentHeadColor = '#00d4aa';
+            invincibleTimer = 0;
 
             angle = Math.PI; 
             targetAngle = Math.PI;
@@ -433,15 +436,22 @@ function initGame(isLoaded) {
                 snakePoints.push({ x: cx + i * SEGMENT_LEN, y: cy });
             }
             spawnFood();
+            autoSaveGame(); // ⚡ 开局即存档一次
         } else {
+            // 💡【读档终极安全防护】：
+            // 将蛇身体拉直沿着头部背向反展开，彻底杜绝任何弯曲重叠导致的秒死
             if (snakePoints && snakePoints.length > 0) {
-                const dx = (W / 2) - snakePoints[0].x;
-                const dy = (H / 2) - snakePoints[0].y;
-                for (let i = 0; i < snakePoints.length; i++) {
-                    snakePoints[i].x += dx;
-                    snakePoints[i].y += dy;
+                const head = { ...snakePoints[0] };
+                const numPoints = snakePoints.length;
+                snakePoints = [];
+                for (let i = 0; i < numPoints; i++) {
+                    snakePoints.push({
+                        x: head.x - Math.cos(angle) * (i * SEGMENT_LEN),
+                        y: head.y - Math.sin(angle) * (i * SEGMENT_LEN)
+                    });
                 }
             }
+            invincibleTimer = 90; // 开启 1.5 秒（90帧）强力无敌保护
         }
 
         gameRunning = true;
@@ -459,6 +469,8 @@ function gameLoop(now) {
 
     const dt = Math.min((now - lastTime) / 16.67, 1.5); 
     lastTime = now;
+
+    if (invincibleTimer > 0) invincibleTimer--;
 
     update(dt);
     draw();
@@ -495,12 +507,14 @@ function update(dt) {
         handleGameOver(); return;
     }
 
-    // 自撞检测 (固定跳过前 6 个脖子节点)
-    const skipNodes = 6; 
-    for (let i = skipNodes; i < snakePoints.length; i++) {
-        const p = snakePoints[i];
-        if (Math.hypot(newHead.x - p.x, newHead.y - p.y) < SNAKE_RADIUS * 1.1) {
-            handleGameOver(); return;
+    // 自撞检测 (无敌状态下免疫)
+    if (invincibleTimer <= 0) {
+        const skipNodes = 6; 
+        for (let i = skipNodes; i < snakePoints.length; i++) {
+            const p = snakePoints[i];
+            if (Math.hypot(newHead.x - p.x, newHead.y - p.y) < SNAKE_RADIUS * 1.1) {
+                handleGameOver(); return;
+            }
         }
     }
 
@@ -512,6 +526,7 @@ function update(dt) {
         snakeLength += 30; 
         if (foodEatenCount % 5 === 0) triggerCombo();
         spawnFood();
+        autoSaveGame(); // ⚡ 每次吃食物时全自动静默存档，确保进度永不丢失！
     }
 }
 
@@ -571,7 +586,7 @@ function draw() {
 
     for (let i = snakePoints.length - 2; i >= 0; i--) {
         const t = totalLen > 0 ? 1 - dists[i] / totalLen : 0; 
-        const alpha = 0.25 + 0.75 * t;
+        const alpha = (invincibleTimer > 0 && Math.floor(invincibleTimer / 4) % 2 === 0) ? 0.3 : (0.25 + 0.75 * t);
         const radius = SNAKE_RADIUS * (0.35 + 0.65 * t);
 
         let color;
@@ -679,11 +694,6 @@ function handleGameOver() {
     gameRunning = false;
     if (rafId) cancelAnimationFrame(rafId);
     saveScore(currentPlayerName, score);
-    updateLeaderboardUI();
-
-    // 清除无效撞死残局存档，避免读档秒死
-    localStorage.removeItem('snake360_saved');
-    checkSavedGame();
 
     canvas.style.borderColor = '#e94560';
     canvas.style.boxShadow = '0 0 30px rgba(233,69,96,.8)';
@@ -698,31 +708,48 @@ function handleGameOver() {
 
 // ── SAVE / LOAD ───────────────────────────
 function checkSavedGame() {
-    loadBtn.disabled = !localStorage.getItem('snake360_saved');
+    const hasData = !!localStorage.getItem('snake360_saved');
+    loadBtn.disabled = !hasData;
 }
 
 function autoSaveGame() {
-    localStorage.setItem('snake360_saved', JSON.stringify({
-        snakePoints, snakeLength, angle, score, snakeSpeed,
-        currentPlayerName, playerChar, foodEatenCount, currentHeadColor, food
-    }));
-    checkSavedGame();
+    try {
+        localStorage.setItem('snake360_saved', JSON.stringify({
+            snakePoints, snakeLength, angle, score, snakeSpeed,
+            currentPlayerName, playerChar, foodEatenCount, currentHeadColor, food
+        }));
+        checkSavedGame();
+    } catch (e) {
+        console.error('存档保存失败:', e);
+    }
 }
 
 function loadSavedGame() {
     const raw = localStorage.getItem('snake360_saved');
-    if (!raw) return;
-    const d = JSON.parse(raw);
-    snakePoints = d.snakePoints; snakeLength = d.snakeLength;
-    angle = d.angle; targetAngle = d.angle; hasJoystickInput = false;
-    score = d.score; snakeSpeed = d.snakeSpeed || 3.5;
-    currentPlayerName = d.currentPlayerName;
-    playerChar = d.playerChar || Array.from(currentPlayerName)[0] || '🐍';
-    foodEatenCount = d.foodEatenCount || 0;
-    currentHeadColor = d.currentHeadColor || '#00d4aa';
-    food = d.food;
+    if (!raw) {
+        alert('没有找到存档数据！');
+        return;
+    }
+    try {
+        const d = JSON.parse(raw);
+        snakePoints = d.snakePoints; 
+        snakeLength = d.snakeLength;
+        angle = d.angle; 
+        targetAngle = d.angle; 
+        hasJoystickInput = false;
+        score = d.score; 
+        snakeSpeed = d.snakeSpeed || 3.5;
+        currentPlayerName = d.currentPlayerName || '玩家';
+        playerChar = d.playerChar || '🐍';
+        foodEatenCount = d.foodEatenCount || 0;
+        currentHeadColor = d.currentHeadColor || '#00d4aa';
+        food = d.food;
 
-    initGame(true);
+        initGame(true);
+    } catch (e) {
+        alert('存档数据格式有误，无法读取。');
+        console.error(e);
+    }
 }
 
 // ── LEADERBOARD ───────────────────────────
