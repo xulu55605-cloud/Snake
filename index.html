@@ -179,7 +179,7 @@
         <div>
             <div class="field-label">速度</div>
             <div class="speed-grid">
-                <button class="speed-btn" data-speed="1.0">极慢</button>
+                <button class="speed-btn" data-speed="1.5">极慢</button>
                 <button class="speed-btn" data-speed="2.5">慢速</button>
                 <button class="speed-btn active" data-speed="3.5">中速</button>
                 <button class="speed-btn" data-speed="4.5">快速</button>
@@ -520,11 +520,11 @@ function update(dt) {
         handleGameOver(); return;
     }
 
-    // Collision — self (skip first 48px = neck, avoid false positives on tight curves)
-    const skipNodes = Math.ceil(48 / SEGMENT_LEN);
+    // Collision — self (固定跳过前 6 个脖子节点，彻底解决低速度/慢速时开局即死的问题)
+    const skipNodes = 6; 
     for (let i = skipNodes; i < snakePoints.length; i++) {
         const p = snakePoints[i];
-        if (Math.hypot(newHead.x - p.x, newHead.y - p.y) < SNAKE_RADIUS * 1.2) {
+        if (Math.hypot(newHead.x - p.x, newHead.y - p.y) < SNAKE_RADIUS * 1.1) {
             handleGameOver(); return;
         }
     }
