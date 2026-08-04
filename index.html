@@ -4,6 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>贪吃蛇 360°</title>
+    
+    <!-- PWA 配置支持 -->
+    <link rel="manifest" href="./manifest.json">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🐍</text></svg>">
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#1a1a2e">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -112,7 +117,6 @@
             touch-action: none;
             box-shadow: 0 4px 28px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.07); }
 
-        /* Direction tick marks around the ring */
         .joystick-zone::before {
             content: '';
             position: absolute; inset: 8px;
@@ -121,21 +125,12 @@
             pointer-events: none;
         }
 
-        /* Cardinal labels */
         .j-label { position: absolute; font-size: 12px; color: rgba(255,255,255,.22);
             pointer-events: none; font-weight: 700; }
         .j-n { top: 10px; }
         .j-s { bottom: 10px; }
         .j-w { left: 10px; }
         .j-e { right: 10px; }
-
-        /* Direction indicator ring (shows current heading) */
-        .joystick-dir-ring {
-            position: absolute;
-            width: 190px; height: 190px;
-            border-radius: 50%;
-            pointer-events: none;
-        }
 
         .joystick-handle { position: absolute; width: 86px; height: 86px;
             background: radial-gradient(circle at 35% 35%, #00e5b8, var(--accent2));
@@ -145,7 +140,6 @@
             pointer-events: none; display: flex; justify-content: center;
             align-items: center; color: rgba(0,0,0,.45); font-size: 24px; }
 
-        /* Angle arc indicator drawn on canvas via JS */
         #dirCanvas { position: absolute; inset: 0; border-radius: 50%; pointer-events: none; }
 
         /* Combo */
@@ -266,24 +260,19 @@ function calibrateCanvas() {
 calibrateCanvas();
 window.addEventListener('resize', () => { calibrateCanvas(); });
 
-// ── 360° SNAKE CORE ──────────────────────────────────────────────
-// Movement model: continuous pixel-based.
-// Snake is stored as an array of (x,y) "keypoints" — positions where
-// the snake changed direction. The body is rendered as a smooth polyline
-// with a fixed total arc-length (pixel length).
-
-const SNAKE_SPEED_DEFAULT = 5;   // px per frame (overridden by speed selector)
-const SNAKE_RADIUS = 5.6;        // 缩小 20% (原为 7)
+// ── 360° SNAKE CORE ───────────────────────
+const SNAKE_SPEED_DEFAULT = 3.5;   // 默认中速
+const SNAKE_RADIUS = 5.6;        
 const FOOD_RADIUS  = 9;
-const SEGMENT_LEN  = SNAKE_RADIUS * 2.2; // distance between trail nodes
+const SEGMENT_LEN  = SNAKE_RADIUS * 2.2; 
 
 const rainbowColors = ['#ff2d55','#ff9500','#ffcc00','#34c759','#007aff','#af52de'];
 const headThemes    = ['#00d4aa','#af52de','#ff2d55','#5856d6','#ff9500','#00c7be'];
 
 // Game state
-let snakePoints = [];  // [{x,y}] head-first, continuous trail nodes
-let snakeLength = 60;  // total pixel length of body
-let angle      = 0;    // current heading in radians (0 = right)
+let snakePoints = [];  
+let snakeLength = 60;  
+let angle      = 0;    
 let snakeSpeed = SNAKE_SPEED_DEFAULT;
 let food       = { x: 100, y: 100 };
 let score      = 0, foodEatenCount = 0;
@@ -294,10 +283,10 @@ let gameRunning = false, isPaused = false;
 let rafId = null;
 let lastTime = 0;
 
-// Joystick state — stores desired angle
+// Joystick state
 let joystickActive = false;
-let targetAngle    = 0;   // angle player is pointing to
-let hasJoystickInput = false;  // whether stick is being held
+let targetAngle    = 0;   
+let hasJoystickInput = false;  
 
 // ── SPEED BUTTONS ─────────────────────────
 speedBtns.forEach(btn => btn.addEventListener('click', () => {
@@ -329,7 +318,6 @@ function updateJoystick(cx, cy) {
     const dx = cx - jcx, dy = cy - jcy;
     const dist = Math.hypot(dx, dy);
 
-    // Clamp handle position
     const clamped = Math.min(dist, MAX_RADIUS);
     const ang = Math.atan2(dy, dx);
     const hx = Math.cos(ang) * clamped;
@@ -357,7 +345,6 @@ function drawDirArc(ang) {
     const sz = 210;
     dctx.clearRect(0, 0, sz, sz);
     const cx = sz/2, cy = sz/2, r = sz/2 - 6;
-    // Draw a glowing arc from center outward in direction of angle
     dctx.save();
     dctx.strokeStyle = 'rgba(0,212,170,0.35)';
     dctx.lineWidth = 3;
@@ -366,7 +353,6 @@ function drawDirArc(ang) {
     dctx.beginPath();
     dctx.arc(cx, cy, r, ang - 0.25, ang + 0.25);
     dctx.stroke();
-    // Dot at tip
     dctx.fillStyle = '#00d4aa';
     dctx.shadowBlur = 12;
     dctx.beginPath();
@@ -402,7 +388,6 @@ joystickZone.addEventListener('mousedown', e => {
 document.addEventListener('mousemove', e => { if (joystickActive) updateJoystick(e.clientX, e.clientY); });
 document.addEventListener('mouseup',   () => { if (joystickActive) resetJoystick(); });
 
-// Keyboard control (WASD / arrows — maps to 8 cardinal/diagonal angles)
 const KEY_ANGLES = {
     ArrowRight: 0, d: 0,
     ArrowDown: Math.PI/2, s: Math.PI/2,
@@ -419,7 +404,6 @@ function handleKey(e) {
 
 // ── INIT GAME ─────────────────────────────
 function initGame(isLoaded) {
-    // Show game page FIRST so layout is rendered, then measure canvas size
     showPage('gamePage');
     displayNameEl.textContent = currentPlayerName;
     scoreEl.textContent = score;
@@ -427,7 +411,6 @@ function initGame(isLoaded) {
     pauseOverlay.style.display = 'none';
     pauseBtn.textContent = '暂停';
 
-    // Use rAF to let browser paint and compute layout before we measure + start
     requestAnimationFrame(() => {
         calibrateCanvas();
 
@@ -440,20 +423,17 @@ function initGame(isLoaded) {
             scoreEl.textContent = 0;
             currentHeadColor = '#00d4aa';
 
-            // Head starts at center, tail extends rightward (so it stays in bounds)
-            angle = Math.PI; // heading left
+            angle = Math.PI; 
             targetAngle = Math.PI;
             hasJoystickInput = false;
             snakeLength = 60;
             snakePoints = [];
             const cx = W / 2, cy = H / 2;
-            // Tail goes to the RIGHT of center (opposite of heading direction)
             for (let i = 0; i <= Math.ceil(snakeLength / SEGMENT_LEN) + 2; i++) {
                 snakePoints.push({ x: cx + i * SEGMENT_LEN, y: cy });
             }
             spawnFood();
         } else {
-            // 在测量好真实 W 和 H 之后再平移整条蛇，确保蛇头精准对齐画布中心
             if (snakePoints && snakePoints.length > 0) {
                 const dx = (W / 2) - snakePoints[0].x;
                 const dy = (H / 2) - snakePoints[0].y;
@@ -471,13 +451,13 @@ function initGame(isLoaded) {
     });
 }
 
-// ── GAME LOOP (rAF-based, delta-time) ─────
+// ── GAME LOOP ─────────────────────────────
 function gameLoop(now) {
     if (!gameRunning) return;
     rafId = requestAnimationFrame(gameLoop);
     if (isPaused) return;
 
-    const dt = Math.min((now - lastTime) / 16.67, 1.5); // normalise to 60fps, cap tighter
+    const dt = Math.min((now - lastTime) / 16.67, 1.5); 
     lastTime = now;
 
     update(dt);
@@ -485,14 +465,11 @@ function gameLoop(now) {
 }
 
 // ── UPDATE ────────────────────────────────
-const TURN_SPEED = 0.12; // radians per frame — smooth steering
+const TURN_SPEED = 0.12; 
 
 function update(dt) {
-    // Smoothly rotate angle toward targetAngle when joystick active
     if (hasJoystickInput) {
-        // Shortest-path angle lerp
         let diff = targetAngle - angle;
-        // Wrap to [-PI, PI]
         while (diff >  Math.PI) diff -= Math.PI * 2;
         while (diff < -Math.PI) diff += Math.PI * 2;
         const step = TURN_SPEED * dt;
@@ -503,7 +480,6 @@ function update(dt) {
         }
     }
 
-    // Move head
     const head = snakePoints[0];
     const newHead = {
         x: head.x + Math.cos(angle) * snakeSpeed * dt,
@@ -511,16 +487,15 @@ function update(dt) {
     };
     snakePoints.unshift(newHead);
 
-    // Trim trail to snakeLength pixels
     trimTrail();
 
-    // Collision — walls (use center of head)
+    // 撞墙检测
     if (newHead.x < SNAKE_RADIUS + 1 || newHead.x > W - SNAKE_RADIUS - 1 ||
         newHead.y < SNAKE_RADIUS + 1 || newHead.y > H - SNAKE_RADIUS - 1) {
         handleGameOver(); return;
     }
 
-    // Collision — self (固定跳过前 6 个脖子节点，彻底解决低速度/慢速时开局即死的问题)
+    // 自撞检测 (固定跳过前 6 个脖子节点)
     const skipNodes = 6; 
     for (let i = skipNodes; i < snakePoints.length; i++) {
         const p = snakePoints[i];
@@ -529,19 +504,18 @@ function update(dt) {
         }
     }
 
-    // Eat food
+    // 吃食物
     if (Math.hypot(newHead.x - food.x, newHead.y - food.y) < SNAKE_RADIUS + FOOD_RADIUS) {
         score += 10;
         foodEatenCount++;
         scoreEl.textContent = score;
-        snakeLength += 30; // grow
+        snakeLength += 30; 
         if (foodEatenCount % 5 === 0) triggerCombo();
         spawnFood();
     }
 }
 
 function trimTrail() {
-    // Walk trail, accumulate arc-length, cut when exceeds snakeLength
     let total = 0;
     for (let i = 1; i < snakePoints.length; i++) {
         const prev = snakePoints[i-1], curr = snakePoints[i];
@@ -555,11 +529,9 @@ function trimTrail() {
 
 // ── DRAW ──────────────────────────────────
 function draw() {
-    // Background
     ctx.fillStyle = '#0d0d1a';
     ctx.fillRect(0, 0, W, H);
 
-    // Subtle dot grid
     ctx.fillStyle = 'rgba(255,255,255,0.04)';
     const spacing = 24;
     for (let x = spacing; x < W; x += spacing)
@@ -567,7 +539,6 @@ function draw() {
             ctx.beginPath(); ctx.arc(x, y, 1, 0, Math.PI*2); ctx.fill();
         }
 
-    // Boundary warning glow
     const edgeDist = 18;
     const head = snakePoints[0];
     if (head.x < edgeDist || head.x > W-edgeDist || head.y < edgeDist || head.y > H-edgeDist) {
@@ -578,7 +549,6 @@ function draw() {
         ctx.fillRect(0, 0, W, H);
     }
 
-    // Food — pulsing glow
     const pulse = 0.85 + 0.15 * Math.sin(performance.now() / 200);
     const foodGrad = ctx.createRadialGradient(food.x, food.y, 0, food.x, food.y, FOOD_RADIUS * pulse * 1.6);
     foodGrad.addColorStop(0, '#ff8fa3');
@@ -589,10 +559,8 @@ function draw() {
     ctx.fillStyle = '#ff6b8a';
     ctx.beginPath(); ctx.arc(food.x, food.y, FOOD_RADIUS * pulse, 0, Math.PI*2); ctx.fill();
 
-    // Snake body — draw as a thick polyline
     if (snakePoints.length < 2) return;
 
-    // Determine total arc length for colour/opacity gradient
     let totalLen = 0;
     const dists = [0];
     for (let i = 1; i < snakePoints.length; i++) {
@@ -601,9 +569,8 @@ function draw() {
         dists.push(totalLen);
     }
 
-    // Draw body segments back-to-front (tail first)
     for (let i = snakePoints.length - 2; i >= 0; i--) {
-        const t = totalLen > 0 ? 1 - dists[i] / totalLen : 0; // 0=tail, 1=head
+        const t = totalLen > 0 ? 1 - dists[i] / totalLen : 0; 
         const alpha = 0.25 + 0.75 * t;
         const radius = SNAKE_RADIUS * (0.35 + 0.65 * t);
 
@@ -614,7 +581,6 @@ function draw() {
             color = i === 0 ? currentHeadColor : '#00d4aa';
         }
 
-        // Parse hex to rgba
         ctx.globalAlpha = alpha;
         ctx.strokeStyle = color;
         ctx.lineWidth = radius * 2;
@@ -627,7 +593,6 @@ function draw() {
     }
     ctx.globalAlpha = 1;
 
-    // Head circle
     const hx = snakePoints[0].x, hy = snakePoints[0].y;
     const hGrad = ctx.createRadialGradient(hx - 2, hy - 2, 1, hx, hy, SNAKE_RADIUS + 3);
     hGrad.addColorStop(0, lighten(currentHeadColor));
@@ -637,7 +602,6 @@ function draw() {
     ctx.beginPath(); ctx.arc(hx, hy, SNAKE_RADIUS + 2, 0, Math.PI*2); ctx.fill();
     ctx.shadowBlur = 0;
 
-    // Eyes — always face heading direction
     const eyeOffset = SNAKE_RADIUS * 0.55;
     const perpAngle = angle + Math.PI/2;
     const eyeForward = SNAKE_RADIUS * 0.4;
@@ -652,7 +616,6 @@ function draw() {
             eyeR*0.55, 0, Math.PI*2); ctx.fill();
     });
 
-    // Direction arrow in front of head
     ctx.save();
     ctx.translate(hx + Math.cos(angle)*(SNAKE_RADIUS+10), hy + Math.sin(angle)*(SNAKE_RADIUS+10));
     ctx.rotate(angle);
@@ -664,7 +627,6 @@ function draw() {
 }
 
 function lighten(hex) {
-    // Return a lighter version of the hex for the head gradient highlight
     let n = parseInt(hex.replace('#',''), 16);
     const r = Math.min(255, ((n >> 16) & 0xff) + 60);
     const g = Math.min(255, ((n >> 8) & 0xff) + 60);
@@ -718,14 +680,17 @@ function handleGameOver() {
     if (rafId) cancelAnimationFrame(rafId);
     saveScore(currentPlayerName, score);
     updateLeaderboardUI();
-    // Flash red then show dialog
+
+    // 清除无效撞死残局存档，避免读档秒死
+    localStorage.removeItem('snake360_saved');
+    checkSavedGame();
+
     canvas.style.borderColor = '#e94560';
     canvas.style.boxShadow = '0 0 30px rgba(233,69,96,.8)';
     setTimeout(() => {
         canvas.style.borderColor = '';
         canvas.style.boxShadow = '';
-        const shouldSave = confirm(`💥 游戏结束！\n${currentPlayerName} 得了 ${score} 分\n\n保存存档吗？`);
-        if (shouldSave) autoSaveGame();
+        alert(`💥 游戏结束！\n${currentPlayerName} 得了 ${score} 分`);
         showPage('menuPage');
         updateLeaderboardUI();
     }, 300);
@@ -746,28 +711,18 @@ function autoSaveGame() {
 
 function loadSavedGame() {
     const raw = localStorage.getItem('snake360_saved');
-        if (!raw) return;
-        const d = JSON.parse(raw);
-        snakePoints = d.snakePoints; 
-        snakeLength = d.snakeLength;
-        angle = d.angle; 
-        targetAngle = d.angle; 
-        hasJoystickInput = false;
-        score = d.score; 
-        snakeSpeed = d.snakeSpeed || 5;
-        currentPlayerName = d.currentPlayerName;
-        playerChar = d.playerChar || Array.from(currentPlayerName)[0] || '🐍';
-        foodEatenCount = d.foodEatenCount || 0;
-        currentHeadColor = d.currentHeadColor || '#00d4aa';
-        food = d.food;
-    
-        // 💡【新增补丁】：如果读檔时蛇节点不够或蛇头重叠，强制将蛇头沿着当前朝向往前拔出一段安全距离 (15px)
-        if (snakePoints && snakePoints.length > 0) {
-            snakePoints[0].x += Math.cos(angle) * 15;
-            snakePoints[0].y += Math.sin(angle) * 15;
-        }
-    
-        initGame(true);
+    if (!raw) return;
+    const d = JSON.parse(raw);
+    snakePoints = d.snakePoints; snakeLength = d.snakeLength;
+    angle = d.angle; targetAngle = d.angle; hasJoystickInput = false;
+    score = d.score; snakeSpeed = d.snakeSpeed || 3.5;
+    currentPlayerName = d.currentPlayerName;
+    playerChar = d.playerChar || Array.from(currentPlayerName)[0] || '🐍';
+    foodEatenCount = d.foodEatenCount || 0;
+    currentHeadColor = d.currentHeadColor || '#00d4aa';
+    food = d.food;
+
+    initGame(true);
 }
 
 // ── LEADERBOARD ───────────────────────────
@@ -789,6 +744,15 @@ function updateLeaderboardUI() {
         li.className = 'lb-item';
         li.innerHTML = `<span><span class="lb-rank">${medals[i]}</span>${item.name}</span><span class="lb-score">${item.score} 分</span>`;
         lbList.appendChild(li);
+    });
+}
+
+// ── PWA SERVICE WORKER REGISTRATION ───────
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+            .then(reg => console.log('PWA ServiceWorker 注册成功:', reg.scope))
+            .catch(err => console.log('PWA ServiceWorker 注册失败:', err));
     });
 }
 </script>
