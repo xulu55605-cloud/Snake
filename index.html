@@ -274,7 +274,17 @@ let snakePoints = [];
 let snakeLength = 60;  
 let angle      = 0;    
 let snakeSpeed = SNAKE_SPEED_DEFAULT;
-let food       = { x: 100, y: 100 };
+let food       = { x: 100, y: 100, type: 0 };
+
+// 食物类型定义：形状、颜色主题
+const FOOD_TYPES = [
+    { name: 'apple',    color1: '#ff6b8a', color2: '#e94560', glow: '#ff2d55',   shape: 'circle'  },
+    { name: 'star',     color1: '#ffe066', color2: '#ff9500', glow: '#ffcc00',   shape: 'star'    },
+    { name: 'diamond',  color1: '#66d9ff', color2: '#007aff', glow: '#00c7be',   shape: 'diamond' },
+    { name: 'triangle', color1: '#b8f5a0', color2: '#34c759', glow: '#00d4aa',   shape: 'triangle'},
+    { name: 'gem',      color1: '#e0aaff', color2: '#af52de', glow: '#bf5af2',   shape: 'hexagon' },
+    { name: 'fire',     color1: '#ffb347', color2: '#ff4500', glow: '#ff6200',   shape: 'circle'  },
+];
 let score      = 0, foodEatenCount = 0;
 let isComboMode = false;
 let currentHeadColor = '#00d4aa';
@@ -507,23 +517,16 @@ function update(dt) {
         handleGameOver(); return;
     }
 
-    // 自撞检测 (无敌状态下免疫)
-    if (invincibleTimer <= 0) {
-        const skipNodes = 6; 
-        for (let i = skipNodes; i < snakePoints.length; i++) {
-            const p = snakePoints[i];
-            if (Math.hypot(newHead.x - p.x, newHead.y - p.y) < SNAKE_RADIUS * 1.1) {
-                handleGameOver(); return;
-            }
-        }
-    }
-
     // 吃食物
     if (Math.hypot(newHead.x - food.x, newHead.y - food.y) < SNAKE_RADIUS + FOOD_RADIUS) {
-        score += 10;
         foodEatenCount++;
+        // 得分规则：每10个食物提升一档，每档加5分（第1-10个5分，11-20个10分，以此类推）
+        const tier = Math.ceil(foodEatenCount / 10);
+        const pts = tier * 5;
+        score += pts;
         scoreEl.textContent = score;
         snakeLength += 30; 
+        showFloatingScore(food.x, food.y, pts);
         if (foodEatenCount % 5 === 0) triggerCombo();
         spawnFood();
         autoSaveGame(); // ⚡ 每次吃食物时全自动静默存档，确保进度永不丢失！
@@ -564,15 +567,7 @@ function draw() {
         ctx.fillRect(0, 0, W, H);
     }
 
-    const pulse = 0.85 + 0.15 * Math.sin(performance.now() / 200);
-    const foodGrad = ctx.createRadialGradient(food.x, food.y, 0, food.x, food.y, FOOD_RADIUS * pulse * 1.6);
-    foodGrad.addColorStop(0, '#ff8fa3');
-    foodGrad.addColorStop(0.5, '#e94560');
-    foodGrad.addColorStop(1, 'rgba(233,69,96,0)');
-    ctx.fillStyle = foodGrad;
-    ctx.beginPath(); ctx.arc(food.x, food.y, FOOD_RADIUS * pulse * 1.6, 0, Math.PI*2); ctx.fill();
-    ctx.fillStyle = '#ff6b8a';
-    ctx.beginPath(); ctx.arc(food.x, food.y, FOOD_RADIUS * pulse, 0, Math.PI*2); ctx.fill();
+    drawFood();
 
     if (snakePoints.length < 2) return;
 
@@ -639,6 +634,104 @@ function draw() {
     ctx.moveTo(6, 0); ctx.lineTo(-4, -4); ctx.lineTo(-4, 4);
     ctx.closePath(); ctx.fill();
     ctx.restore();
+
+    drawFloatingScores();
+}
+
+// ── DRAW FOOD ─────────────────────────────
+function drawFood() {
+    const ft = FOOD_TYPES[food.type] || FOOD_TYPES[0];
+    const pulse = 0.85 + 0.15 * Math.sin(performance.now() / 200);
+    const r = FOOD_RADIUS * pulse;
+    const fx = food.x, fy = food.y;
+
+    // 光晕
+    const glowGrad = ctx.createRadialGradient(fx, fy, 0, fx, fy, r * 2.2);
+    glowGrad.addColorStop(0, ft.glow + '55');
+    glowGrad.addColorStop(1, ft.glow + '00');
+    ctx.fillStyle = glowGrad;
+    ctx.beginPath(); ctx.arc(fx, fy, r * 2.2, 0, Math.PI*2); ctx.fill();
+
+    ctx.save();
+    ctx.shadowColor = ft.glow;
+    ctx.shadowBlur = 14;
+
+    // 渐变填充色
+    const grad = ctx.createRadialGradient(fx - r*0.3, fy - r*0.3, r*0.1, fx, fy, r);
+    grad.addColorStop(0, ft.color1);
+    grad.addColorStop(1, ft.color2);
+    ctx.fillStyle = grad;
+
+    const t = performance.now() / 1000;
+
+    if (ft.shape === 'circle') {
+        ctx.beginPath(); ctx.arc(fx, fy, r, 0, Math.PI*2); ctx.fill();
+        // 高光
+        ctx.fillStyle = 'rgba(255,255,255,0.35)';
+        ctx.beginPath(); ctx.arc(fx - r*0.28, fy - r*0.28, r*0.28, 0, Math.PI*2); ctx.fill();
+
+    } else if (ft.shape === 'star') {
+        ctx.translate(fx, fy);
+        ctx.rotate(t * 0.8);
+        ctx.beginPath();
+        for (let i = 0; i < 5; i++) {
+            const a1 = (i * 4 * Math.PI / 5) - Math.PI/2;
+            const a2 = ((i * 4 + 2) * Math.PI / 5) - Math.PI/2;
+            if (i === 0) ctx.moveTo(Math.cos(a1)*r, Math.sin(a1)*r);
+            else ctx.lineTo(Math.cos(a1)*r, Math.sin(a1)*r);
+            ctx.lineTo(Math.cos(a2)*r*0.45, Math.sin(a2)*r*0.45);
+        }
+        ctx.closePath(); ctx.fill();
+
+    } else if (ft.shape === 'diamond') {
+        ctx.translate(fx, fy);
+        ctx.rotate(t * 0.5);
+        ctx.beginPath();
+        ctx.moveTo(0, -r*1.1);
+        ctx.lineTo(r*0.7, 0);
+        ctx.lineTo(0, r*1.1);
+        ctx.lineTo(-r*0.7, 0);
+        ctx.closePath(); ctx.fill();
+        // 内部高光线
+        ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(0, -r*1.1); ctx.lineTo(r*0.7, 0);
+        ctx.stroke();
+
+    } else if (ft.shape === 'triangle') {
+        ctx.translate(fx, fy);
+        ctx.rotate(t * 0.6);
+        ctx.beginPath();
+        for (let i = 0; i < 3; i++) {
+            const a = (i * 2 * Math.PI / 3) - Math.PI/2;
+            if (i === 0) ctx.moveTo(Math.cos(a)*r*1.1, Math.sin(a)*r*1.1);
+            else ctx.lineTo(Math.cos(a)*r*1.1, Math.sin(a)*r*1.1);
+        }
+        ctx.closePath(); ctx.fill();
+
+    } else if (ft.shape === 'hexagon') {
+        ctx.translate(fx, fy);
+        ctx.rotate(t * 0.4);
+        ctx.beginPath();
+        for (let i = 0; i < 6; i++) {
+            const a = (i * Math.PI / 3);
+            if (i === 0) ctx.moveTo(Math.cos(a)*r, Math.sin(a)*r);
+            else ctx.lineTo(Math.cos(a)*r, Math.sin(a)*r);
+        }
+        ctx.closePath(); ctx.fill();
+        // 内六边形
+        ctx.fillStyle = 'rgba(255,255,255,0.2)';
+        ctx.beginPath();
+        for (let i = 0; i < 6; i++) {
+            const a = (i * Math.PI / 3);
+            if (i === 0) ctx.moveTo(Math.cos(a)*r*0.5, Math.sin(a)*r*0.5);
+            else ctx.lineTo(Math.cos(a)*r*0.5, Math.sin(a)*r*0.5);
+        }
+        ctx.closePath(); ctx.fill();
+    }
+
+    ctx.restore();
 }
 
 function lighten(hex) {
@@ -649,11 +742,38 @@ function lighten(hex) {
     return `rgb(${r},${g},${b})`;
 }
 
+// ── FLOATING SCORE TEXT ───────────────────
+const floatingScores = [];
+function showFloatingScore(x, y, pts) {
+    floatingScores.push({ x, y, pts, life: 60, vy: -1.2 });
+}
+function drawFloatingScores() {
+    for (let i = floatingScores.length - 1; i >= 0; i--) {
+        const fs = floatingScores[i];
+        const alpha = fs.life / 60;
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.font = `bold ${14 + Math.floor(fs.pts/5)}px sans-serif`;
+        ctx.fillStyle = fs.pts >= 15 ? '#ffcc00' : fs.pts >= 10 ? '#00d4aa' : '#ff8fa3';
+        ctx.textAlign = 'center';
+        ctx.fillText(`+${fs.pts}`, fs.x, fs.y);
+        ctx.restore();
+        fs.y += fs.vy;
+        fs.life--;
+        if (fs.life <= 0) floatingScores.splice(i, 1);
+    }
+}
+
 // ── FOOD ──────────────────────────────────
 function spawnFood() {
-    const margin = FOOD_RADIUS + 10;
-    food.x = margin + Math.random() * (W - margin*2);
-    food.y = margin + Math.random() * (H - margin*2);
+    // 食物只出现在画布中央80%范围内，远离边界
+    const innerW = W * 0.8;
+    const innerH = H * 0.8;
+    const offsetX = (W - innerW) / 2;
+    const offsetY = (H - innerH) / 2;
+    food.x = offsetX + Math.random() * innerW;
+    food.y = offsetY + Math.random() * innerH;
+    food.type = Math.floor(Math.random() * FOOD_TYPES.length);
 }
 
 // ── COMBO ─────────────────────────────────
@@ -743,7 +863,8 @@ function loadSavedGame() {
         playerChar = d.playerChar || '🐍';
         foodEatenCount = d.foodEatenCount || 0;
         currentHeadColor = d.currentHeadColor || '#00d4aa';
-        food = d.food;
+        food = d.food || { x: 100, y: 100, type: 0 };
+        if (food.type === undefined) food.type = 0;
 
         initGame(true);
     } catch (e) {
