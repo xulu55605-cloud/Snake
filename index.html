@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>贪吃蛇 360°</title>
+    <title>贪吃蛇_千雨</title>
     
     <!-- PWA 配置支持 -->
     <link rel="manifest" href="./manifest.json">
@@ -164,7 +164,7 @@
 <!-- MENU -->
 <div class="page active" id="menuPage">
     <div class="logo">🐍</div>
-    <div class="game-title">贪吃蛇 360°</div>
+    <div class="game-title">贪吃蛇_千雨</div>
     <div class="menu-card">
         <div>
             <div class="field-label">玩家名字</div>
@@ -633,6 +633,19 @@ function draw() {
     ctx.beginPath();
     ctx.moveTo(6, 0); ctx.lineTo(-4, -4); ctx.lineTo(-4, 4);
     ctx.closePath(); ctx.fill();
+    ctx.restore();
+
+    // 蛇头上显示玩家首字符（始终朝上，不随蛇头方向旋转）
+    const initial = Array.from(currentPlayerName || '?')[0] || '?';
+    const fontSize = Math.round((SNAKE_RADIUS + 2) * 1.6);
+    ctx.save();
+    ctx.font = `bold ${fontSize}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.shadowColor = 'rgba(0,0,0,0.8)';
+    ctx.shadowBlur = 4;
+    ctx.fillStyle = '#fff';
+    ctx.fillText(initial, hx, hy);
     ctx.restore();
 
     drawFloatingScores();
