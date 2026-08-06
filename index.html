@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>贪吃蛇 音效°</title>
+    <title>贪吃蛇 360°</title>
     
     <!-- PWA 配置支持 -->
     <link rel="manifest" href="./manifest.json">
@@ -75,6 +75,23 @@
             border: 1px solid rgba(255,255,255,.06); border-radius: 10px; font-size: 14px; }
         .lb-rank { font-weight: 800; margin-right: 10px; }
         .lb-score { font-weight: 700; color: var(--accent2); }
+
+        /* ── 皮肤选择器 ── */
+        .skin-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 8px; }
+        .skin-btn {
+            padding: 8px 4px 6px;
+            border: 2px solid rgba(255,255,255,.12);
+            background: rgba(255,255,255,.04);
+            border-radius: 12px; cursor: pointer;
+            display: flex; flex-direction: column; align-items: center; gap: 4px;
+            transition: all .15s;
+        }
+        .skin-btn .skin-preview {
+            width: 36px; height: 12px; border-radius: 6px;
+        }
+        .skin-btn .skin-label { font-size: 10px; font-weight: 700; color: var(--muted); }
+        .skin-btn.active { border-color: var(--accent2); background: rgba(0,212,170,.12); }
+        .skin-btn.active .skin-label { color: var(--accent2); }
 
         /* ── GAME PAGE ── */
         #gamePage { padding: 0; gap: 0; justify-content: flex-start; }
@@ -164,11 +181,15 @@
 <!-- MENU -->
 <div class="page active" id="menuPage">
     <div class="logo">🐍</div>
-    <div class="game-title">贪吃蛇 音效</div>
+    <div class="game-title">贪吃蛇 360°</div>
     <div class="menu-card">
         <div>
             <div class="field-label">玩家名字</div>
             <input type="text" id="playerName" placeholder="输入名字" maxlength="10">
+        </div>
+        <div>
+            <div class="field-label">🎨 蛇皮肤</div>
+            <div class="skin-grid" id="skinGrid"></div>
         </div>
         <div>
             <div class="field-label">速度</div>
@@ -317,6 +338,113 @@ let rafId = null;
 let lastTime = 0;
 let invincibleTimer = 0; // 🛡️ 读档无敌保护机制
 let eggFood = null; // 彩蛋食物（随机出现）
+
+// ── 特殊道具食物 ──────────────────────────
+let specialFood = null; // { type: 'magnet'|'freeze'|'poison', x, y, timer }
+let magnetActive  = 0;  // 剩余帧数
+let freezeActive  = 0;  // AI冻结剩余帧数
+
+function maybeSpawnSpecial() {
+    if (specialFood) return;
+    if (Math.random() < 1 / 12) {
+        const types = ['magnet', 'freeze', 'poison'];
+        const type  = types[Math.floor(Math.random() * types.length)];
+        const innerW = W * 0.8, innerH = H * 0.8;
+        const ox = (W - innerW) / 2, oy = (H - innerH) / 2;
+        specialFood = {
+            type, life: 300, // 5秒后消失
+            x: ox + Math.random() * innerW,
+            y: oy + Math.random() * innerH,
+        };
+    }
+}
+
+// ── 皮肤系统 ──────────────────────────────
+const SKINS = [
+    {
+        id: 'neon', label: '霓虹', emoji: '💡',
+        bodyColor: '#00d4aa', headColor: '#00d4aa',
+        bodyFn: null, // null = 默认纯色
+        preview: 'linear-gradient(90deg,#00d4aa,#007aff)',
+    },
+    {
+        id: 'fire', label: '火焰', emoji: '🔥',
+        bodyColor: '#ff4500', headColor: '#ff6200',
+        preview: 'linear-gradient(90deg,#ff9500,#ff4500,#e94560)',
+        bodyFn: (t, total, i) => {
+            const fireColors = ['#ff9500','#ff6200','#ff4500','#e94560','#ff2d55'];
+            return fireColors[Math.floor((i / total) * fireColors.length)];
+        },
+    },
+    {
+        id: 'galaxy', label: '星空', emoji: '🌌',
+        bodyColor: '#5856d6', headColor: '#af52de',
+        preview: 'linear-gradient(90deg,#5856d6,#af52de,#007aff)',
+        bodyFn: (t, total, i) => {
+            const c = ['#5856d6','#7c5cbf','#af52de','#007aff','#5ac8fa'];
+            return c[Math.floor((i / total) * c.length)];
+        },
+    },
+    {
+        id: 'pixel', label: '像素', emoji: '🟩',
+        bodyColor: '#34c759', headColor: '#00d4aa',
+        preview: 'linear-gradient(90deg,#34c759,#00d4aa)',
+        bodyFn: (t, total, i) => (Math.floor(i / 3) % 2 === 0 ? '#34c759' : '#2da44e'),
+    },
+    {
+        id: 'candy', label: '糖果', emoji: '🍬',
+        bodyColor: '#ff2d55', headColor: '#ff6b8a',
+        preview: 'linear-gradient(90deg,#ff2d55,#ff9500,#ffcc00,#34c759)',
+        bodyFn: (t, total, i) => {
+            const c = ['#ff2d55','#ff9500','#ffcc00','#34c759','#007aff','#af52de'];
+            return c[i % c.length];
+        },
+    },
+    {
+        id: 'ice', label: '冰晶', emoji: '❄️',
+        bodyColor: '#5ac8fa', headColor: '#00c7be',
+        preview: 'linear-gradient(90deg,#5ac8fa,#00c7be,#fff)',
+        bodyFn: (t, total, i) => {
+            const p = i / Math.max(1, total);
+            const v = Math.round(180 + 75 * p);
+            return `rgb(${v},${v + 30},255)`;
+        },
+    },
+    {
+        id: 'gold', label: '黄金', emoji: '✨',
+        bodyColor: '#ffcc00', headColor: '#ff9500',
+        preview: 'linear-gradient(90deg,#ffcc00,#ff9500,#ffe066)',
+        bodyFn: (t, total, i) => (Math.floor(i / 2) % 2 === 0 ? '#ffcc00' : '#ff9500'),
+    },
+    {
+        id: 'shadow', label: '暗影', emoji: '🖤',
+        bodyColor: '#636366', headColor: '#8e8e93',
+        preview: 'linear-gradient(90deg,#1c1c1e,#636366,#8e8e93)',
+        bodyFn: (t, total, i) => {
+            const p = 1 - i / Math.max(1, total);
+            const v = Math.round(40 + 100 * p);
+            return `rgb(${v},${v},${v})`;
+        },
+    },
+];
+let currentSkin = SKINS[0];
+
+// 渲染皮肤选择器
+const skinGrid = document.getElementById('skinGrid');
+SKINS.forEach((skin, idx) => {
+    const btn = document.createElement('button');
+    btn.className = 'skin-btn' + (idx === 0 ? ' active' : '');
+    btn.innerHTML = `
+        <div class="skin-preview" style="background:${skin.preview}"></div>
+        <div class="skin-label">${skin.emoji} ${skin.label}</div>`;
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('.skin-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentSkin = skin;
+        currentHeadColor = skin.headColor;
+    });
+    skinGrid.appendChild(btn);
+});
 
 // ── AI 蛇 ─────────────────────────────────
 const AI_SPEED        = 1.2;   // 非常缓慢
@@ -587,7 +715,47 @@ function sfxStart() {
     });
 }
 
-// Canvas 震动动画
+// 特殊道具音效
+function sfxSpecial(type) {
+    const ac = getAudioCtx();
+    if (type === 'magnet') {
+        // 上升电磁音
+        [440, 554, 659, 880].forEach((f, i) => {
+            const o = ac.createOscillator(), g = ac.createGain();
+            o.connect(g); g.connect(ac.destination);
+            o.type = 'sine';
+            const t = ac.currentTime + i * 0.06;
+            o.frequency.setValueAtTime(f, t);
+            g.gain.setValueAtTime(0.14, t);
+            g.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
+            o.start(t); o.stop(t + 0.15);
+        });
+        vibrate([10, 10, 20]);
+    } else if (type === 'freeze') {
+        // 冰晶颤音
+        const o = ac.createOscillator(), g = ac.createGain();
+        o.connect(g); g.connect(ac.destination);
+        o.type = 'triangle';
+        o.frequency.setValueAtTime(1200, ac.currentTime);
+        o.frequency.exponentialRampToValueAtTime(600, ac.currentTime + 0.3);
+        g.gain.setValueAtTime(0.18, ac.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.3);
+        o.start(); o.stop(ac.currentTime + 0.3);
+        vibrate([5, 5, 5, 5, 30]);
+    } else if (type === 'poison') {
+        // 低沉不和谐音
+        [180, 185].forEach(f => {
+            const o = ac.createOscillator(), g = ac.createGain();
+            o.connect(g); g.connect(ac.destination);
+            o.type = 'sawtooth';
+            o.frequency.setValueAtTime(f, ac.currentTime);
+            g.gain.setValueAtTime(0.12, ac.currentTime);
+            g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.4);
+            o.start(); o.stop(ac.currentTime + 0.4);
+        });
+        vibrate([40, 20, 40]);
+    }
+}
 let shakeFrames = 0, shakeIntensity = 0;
 function triggerShake(frames = 8, intensity = 5) {
     shakeFrames = frames;
@@ -740,6 +908,51 @@ function update(dt) {
         triggerShake(12, 6);
         eggFood = null;
     }
+
+    // 磁铁效果：食物向蛇头漂移
+    if (magnetActive > 0) {
+        magnetActive--;
+        const mx = newHead.x, my = newHead.y;
+        const pull = 0.04;
+        food.x += (mx - food.x) * pull;
+        food.y += (my - food.y) * pull;
+        if (eggFood) { eggFood.x += (mx - eggFood.x) * pull * 0.5; eggFood.y += (my - eggFood.y) * pull * 0.5; }
+    }
+
+    // 冰冻计时器递减
+    if (freezeActive > 0) freezeActive--;
+
+    // 特殊道具：生命周期递减 + 拾取
+    if (specialFood) {
+        specialFood.life--;
+        if (specialFood.life <= 0) { specialFood = null; }
+        else if (Math.hypot(newHead.x - specialFood.x, newHead.y - specialFood.y) < SNAKE_RADIUS + FOOD_RADIUS * 1.2) {
+            const fx = specialFood.x, fy = specialFood.y;
+            if (specialFood.type === 'magnet') {
+                magnetActive = 300; // 5秒磁铁
+                showFloatingScore(fx, fy, 0, false, '🧲 磁铁！');
+                sfxSpecial('magnet');
+                triggerShake(5, 3);
+            } else if (specialFood.type === 'freeze') {
+                freezeActive = 180; // 3秒冻结AI
+                showFloatingScore(fx, fy, 0, false, '❄️ 冰冻！');
+                sfxSpecial('freeze');
+                triggerShake(6, 3);
+            } else if (specialFood.type === 'poison') {
+                const deduct = Math.min(score, 30);
+                score = Math.max(0, score - deduct);
+                scoreEl.textContent = score;
+                snakeLength = Math.max(40, snakeLength - 40);
+                showFloatingScore(fx, fy, 0, false, `💀 -${deduct}`);
+                sfxSpecial('poison');
+                triggerShake(14, 7);
+            }
+            specialFood = null;
+        }
+    }
+
+    // 随机生成特殊道具（每帧1/600概率，约10秒一次）
+    if (!specialFood && Math.random() < 1 / 600) maybeSpawnSpecial();
 }
 
 function trimTrail() {
@@ -867,7 +1080,29 @@ function draw() {
     drawAiSnake();
     drawFood();
     drawEggFood();
+    drawSpecialFood();
     drawFloatingScores();
+    // 冰冻状态：全屏蓝色遮罩提示
+    if (freezeActive > 0) {
+        const alpha = Math.min(0.18, (freezeActive / 180) * 0.18);
+        ctx.fillStyle = `rgba(90,200,250,${alpha})`;
+        ctx.fillRect(0, 0, W, H);
+        ctx.save();
+        ctx.font = 'bold 13px sans-serif';
+        ctx.fillStyle = `rgba(90,200,250,${Math.min(1, freezeActive / 30)})`;
+        ctx.textAlign = 'center';
+        ctx.fillText(`❄️ AI冻结 ${Math.ceil(freezeActive/60)}s`, W/2, 20);
+        ctx.restore();
+    }
+    // 磁铁状态提示
+    if (magnetActive > 0) {
+        ctx.save();
+        ctx.font = 'bold 13px sans-serif';
+        ctx.fillStyle = `rgba(255,214,10,${Math.min(1, magnetActive / 30)})`;
+        ctx.textAlign = 'center';
+        ctx.fillText(`🧲 磁铁 ${Math.ceil(magnetActive/60)}s`, W/2, 36);
+        ctx.restore();
+    }
     ctx.restore(); // 结束震动变换
 }
 
@@ -977,17 +1212,27 @@ function lighten(hex) {
 
 // ── FLOATING SCORE TEXT ───────────────────
 const floatingScores = [];
-function showFloatingScore(x, y, pts, isEgg = false) {
-    floatingScores.push({ x, y, pts, isEgg, life: isEgg ? 90 : 60, vy: isEgg ? -1.8 : -1.2 });
+function showFloatingScore(x, y, pts, isEgg = false, label = null) {
+    floatingScores.push({ x, y, pts, isEgg, label, life: isEgg ? 90 : 70, vy: isEgg ? -1.8 : -1.4 });
 }
 function drawFloatingScores() {
     for (let i = floatingScores.length - 1; i >= 0; i--) {
         const fs = floatingScores[i];
-        const maxLife = fs.isEgg ? 90 : 60;
+        const maxLife = fs.isEgg ? 90 : 70;
         const alpha = fs.life / maxLife;
         ctx.save();
         ctx.globalAlpha = alpha;
-        if (fs.isEgg) {
+        if (fs.label) {
+            // 自定义标签（道具）
+            ctx.font = 'bold 15px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.shadowColor = 'rgba(0,0,0,0.7)';
+            ctx.shadowBlur = 6;
+            ctx.fillStyle = fs.label.includes('💀') ? '#ff6b6b'
+                          : fs.label.includes('🧲') ? '#ffd60a'
+                          : '#5ac8fa';
+            ctx.fillText(fs.label, fs.x, fs.y);
+        } else if (fs.isEgg) {
             const scale = 1 + (1 - alpha) * 0.5;
             ctx.translate(fs.x, fs.y);
             ctx.scale(scale, scale);
@@ -1072,6 +1317,7 @@ function initAiSnake() {
 
 function updateAiSnake(dt) {
     if (!aiSnake.active || aiSnake.points.length < 1) return;
+    if (freezeActive > 0) return; // ❄️ 冻结中，AI静止
 
     const head = aiSnake.points[0];
     const WALL_MARGIN = 28;
