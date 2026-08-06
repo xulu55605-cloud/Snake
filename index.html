@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>贪吃蛇_千雨</title>
+    <title>贪吃蛇_千雨版</title>
     
     <!-- PWA 配置支持 -->
     <link rel="manifest" href="./manifest.json">
@@ -164,7 +164,7 @@
 <!-- MENU -->
 <div class="page active" id="menuPage">
     <div class="logo">🐍</div>
-    <div class="game-title">贪吃蛇_千雨</div>
+    <div class="game-title">贪吃蛇_千雨版</div>
     <div class="menu-card">
         <div>
             <div class="field-label">玩家名字</div>
@@ -175,7 +175,7 @@
             <div class="speed-grid">
                 <button class="speed-btn" data-speed="1.5">极慢</button>
                 <button class="speed-btn" data-speed="2.5">慢速</button>
-                <button class="speed-btn active" data-speed="3.5">中速</button>
+                <button class="speed-btn active" data-speed="3.0">中速</button>
                 <button class="speed-btn" data-speed="4.5">快速</button>
             </div>
         </div>
@@ -196,6 +196,10 @@
         <div>
             <div class="hud-player" id="displayName">玩家</div>
             <div class="hud-score"><span id="currentScore">0</span> 分</div>
+        </div>
+        <div style="text-align:center;">
+            <div style="font-size:11px;font-weight:700;color:#ff6b35;letter-spacing:1px;">🤖 AI</div>
+            <div style="font-size:16px;font-weight:800;color:#ff6b35;"><span id="aiScore">0</span> 分</div>
         </div>
         <div class="hud-actions">
             <button class="hud-btn hud-pause" id="pauseBtn">暂停</button>
@@ -229,6 +233,7 @@ const ctx          = canvas.getContext('2d');
 const dirCanvas    = document.getElementById('dirCanvas');
 const dctx         = dirCanvas.getContext('2d');
 const scoreEl      = document.getElementById('currentScore');
+const aiScoreEl    = document.getElementById('aiScore');
 const displayNameEl= document.getElementById('displayName');
 const nameInput    = document.getElementById('playerName');
 const startBtn     = document.getElementById('startBtn');
@@ -293,6 +298,25 @@ let gameRunning = false, isPaused = false;
 let rafId = null;
 let lastTime = 0;
 let invincibleTimer = 0; // 🛡️ 读档无敌保护机制
+let eggFood = null; // 彩蛋食物（随机出现）
+
+// ── AI 蛇 ─────────────────────────────────
+const AI_SPEED        = 1.2;   // 非常缓慢
+const AI_RADIUS       = SNAKE_RADIUS * 0.9;
+const AI_TURN_SPEED   = 0.055; // 转向迟缓，行为更笨拙
+const AI_COLOR_BODY   = '#ff6b35';
+const AI_COLOR_HEAD   = '#ff3b00';
+let aiSnake = {
+    points: [],
+    length: 50,
+    angle:  0,
+    target: 0,   // 目标朝向
+    score:  0,
+    active: false,
+    // 避障计时器：撞到边界时触发一小段随机逃跑
+    wanderTimer: 0,
+    wanderAngle: 0,
+};
 
 // ── SPEED BUTTONS ─────────────────────────
 speedBtns.forEach(btn => btn.addEventListener('click', () => {
@@ -433,8 +457,10 @@ function initGame(isLoaded) {
             displayNameEl.textContent = currentPlayerName;
             score = 0; foodEatenCount = 0;
             scoreEl.textContent = 0;
+            aiScoreEl.textContent = 0;
             currentHeadColor = '#00d4aa';
             invincibleTimer = 0;
+            eggFood = null;
 
             angle = Math.PI; 
             targetAngle = Math.PI;
@@ -446,6 +472,7 @@ function initGame(isLoaded) {
                 snakePoints.push({ x: cx + i * SEGMENT_LEN, y: cy });
             }
             spawnFood();
+            initAiSnake();
             autoSaveGame(); // ⚡ 开局即存档一次
         } else {
             // 💡【读档终极安全防护】：
@@ -467,6 +494,7 @@ function initGame(isLoaded) {
         gameRunning = true;
         if (rafId) cancelAnimationFrame(rafId);
         lastTime = performance.now();
+        initAiSnake();
         rafId = requestAnimationFrame(gameLoop);
     });
 }
@@ -483,6 +511,7 @@ function gameLoop(now) {
     if (invincibleTimer > 0) invincibleTimer--;
 
     update(dt);
+    updateAiSnake(dt);
     draw();
 }
 
@@ -520,16 +549,25 @@ function update(dt) {
     // 吃食物
     if (Math.hypot(newHead.x - food.x, newHead.y - food.y) < SNAKE_RADIUS + FOOD_RADIUS) {
         foodEatenCount++;
-        // 得分规则：每10个食物提升一档，每档加5分（第1-10个5分，11-20个10分，以此类推）
         const tier = Math.ceil(foodEatenCount / 10);
         const pts = tier * 5;
         score += pts;
         scoreEl.textContent = score;
-        snakeLength += 30; 
+        snakeLength += 30;
         showFloatingScore(food.x, food.y, pts);
         if (foodEatenCount % 5 === 0) triggerCombo();
         spawnFood();
-        autoSaveGame(); // ⚡ 每次吃食物时全自动静默存档，确保进度永不丢失！
+        maybeSpawnEgg(); // 每次吃完普通食物后，有1/15概率生成彩蛋
+        autoSaveGame();
+    }
+
+    // 吃彩蛋食物
+    if (eggFood && Math.hypot(newHead.x - eggFood.x, newHead.y - eggFood.y) < SNAKE_RADIUS + FOOD_RADIUS * 1.4) {
+        score += 500;
+        scoreEl.textContent = score;
+        snakeLength += 80;
+        showFloatingScore(eggFood.x, eggFood.y, 500, true);
+        eggFood = null;
     }
 }
 
@@ -566,8 +604,6 @@ function draw() {
         ctx.fillStyle = grad;
         ctx.fillRect(0, 0, W, H);
     }
-
-    drawFood();
 
     if (snakePoints.length < 2) return;
 
@@ -648,6 +684,9 @@ function draw() {
     ctx.fillText(initial, hx, hy);
     ctx.restore();
 
+    drawAiSnake();
+    drawFood();
+    drawEggFood();
     drawFloatingScores();
 }
 
@@ -757,19 +796,32 @@ function lighten(hex) {
 
 // ── FLOATING SCORE TEXT ───────────────────
 const floatingScores = [];
-function showFloatingScore(x, y, pts) {
-    floatingScores.push({ x, y, pts, life: 60, vy: -1.2 });
+function showFloatingScore(x, y, pts, isEgg = false) {
+    floatingScores.push({ x, y, pts, isEgg, life: isEgg ? 90 : 60, vy: isEgg ? -1.8 : -1.2 });
 }
 function drawFloatingScores() {
     for (let i = floatingScores.length - 1; i >= 0; i--) {
         const fs = floatingScores[i];
-        const alpha = fs.life / 60;
+        const maxLife = fs.isEgg ? 90 : 60;
+        const alpha = fs.life / maxLife;
         ctx.save();
         ctx.globalAlpha = alpha;
-        ctx.font = `bold ${14 + Math.floor(fs.pts/5)}px sans-serif`;
-        ctx.fillStyle = fs.pts >= 15 ? '#ffcc00' : fs.pts >= 10 ? '#00d4aa' : '#ff8fa3';
-        ctx.textAlign = 'center';
-        ctx.fillText(`+${fs.pts}`, fs.x, fs.y);
+        if (fs.isEgg) {
+            const scale = 1 + (1 - alpha) * 0.5;
+            ctx.translate(fs.x, fs.y);
+            ctx.scale(scale, scale);
+            ctx.font = `bold 20px sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.shadowColor = '#ffcc00';
+            ctx.shadowBlur = 12;
+            ctx.fillStyle = '#ffcc00';
+            ctx.fillText(`🥚 +500`, 0, 0);
+        } else {
+            ctx.font = `bold ${14 + Math.floor(fs.pts/5)}px sans-serif`;
+            ctx.fillStyle = fs.pts >= 15 ? '#ffcc00' : fs.pts >= 10 ? '#00d4aa' : '#ff8fa3';
+            ctx.textAlign = 'center';
+            ctx.fillText(`+${fs.pts}`, fs.x, fs.y);
+        }
         ctx.restore();
         fs.y += fs.vy;
         fs.life--;
@@ -779,7 +831,6 @@ function drawFloatingScores() {
 
 // ── FOOD ──────────────────────────────────
 function spawnFood() {
-    // 食物只出现在画布中央80%范围内，远离边界
     const innerW = W * 0.8;
     const innerH = H * 0.8;
     const offsetX = (W - innerW) / 2;
@@ -787,6 +838,304 @@ function spawnFood() {
     food.x = offsetX + Math.random() * innerW;
     food.y = offsetY + Math.random() * innerH;
     food.type = Math.floor(Math.random() * FOOD_TYPES.length);
+}
+
+function maybeSpawnEgg() {
+    if (eggFood) return;
+    if (Math.random() < 1 / 15) {
+        const innerW = W * 0.8;
+        const innerH = H * 0.8;
+        const offsetX = (W - innerW) / 2;
+        const offsetY = (H - innerH) / 2;
+        eggFood = {
+            x: offsetX + Math.random() * innerW,
+            y: offsetY + Math.random() * innerH,
+        };
+    }
+}
+
+// ── AI 蛇逻辑 ─────────────────────────────
+function initAiSnake() {
+    // 出生在玩家对角附近，避免重叠
+    const margin = 40;
+    const px = snakePoints[0]?.x ?? W / 2;
+    const py = snakePoints[0]?.y ?? H / 2;
+    // 选一个远离玩家的角落区域
+    const corners = [
+        { x: margin + Math.random() * W * 0.25, y: margin + Math.random() * H * 0.25 },
+        { x: W * 0.75 + Math.random() * W * 0.2, y: margin + Math.random() * H * 0.25 },
+        { x: margin + Math.random() * W * 0.25, y: H * 0.75 + Math.random() * H * 0.2 },
+        { x: W * 0.75 + Math.random() * W * 0.2, y: H * 0.75 + Math.random() * H * 0.2 },
+    ];
+    corners.sort((a, b) =>
+        Math.hypot(b.x - px, b.y - py) - Math.hypot(a.x - px, a.y - py)
+    );
+    const start = corners[0];
+    start.x = Math.max(margin, Math.min(W - margin, start.x));
+    start.y = Math.max(margin, Math.min(H - margin, start.y));
+
+    aiSnake.angle  = Math.random() * Math.PI * 2;
+    aiSnake.target = aiSnake.angle;
+    aiSnake.length = 50;
+    aiSnake.score  = 0;
+    aiSnake.wanderTimer = 0;
+    aiSnake.points = [];
+    for (let i = 0; i <= Math.ceil(aiSnake.length / SEGMENT_LEN) + 2; i++) {
+        aiSnake.points.push({
+            x: start.x - Math.cos(aiSnake.angle) * i * SEGMENT_LEN,
+            y: start.y - Math.sin(aiSnake.angle) * i * SEGMENT_LEN,
+        });
+    }
+    aiSnake.active = true;
+}
+
+function updateAiSnake(dt) {
+    if (!aiSnake.active || aiSnake.points.length < 1) return;
+
+    const head = aiSnake.points[0];
+    const WALL_MARGIN = 28;
+
+    // ── AI 决策：选择追逐目标 ────────────────
+    // 优先彩蛋，其次普通食物
+    let targetX = food.x, targetY = food.y;
+    if (eggFood) {
+        const dEgg = Math.hypot(head.x - eggFood.x, head.y - eggFood.y);
+        const dFood = Math.hypot(head.x - food.x, head.y - food.y);
+        if (dEgg < dFood * 1.8) { targetX = eggFood.x; targetY = eggFood.y; }
+    }
+
+    // 判断是否正在紧贴墙壁，触发随机逃跑
+    const nearWall = head.x < WALL_MARGIN || head.x > W - WALL_MARGIN ||
+                     head.y < WALL_MARGIN || head.y > H - WALL_MARGIN;
+
+    if (nearWall && aiSnake.wanderTimer <= 0) {
+        // 转向画布中心偏移一个随机角
+        const toCenterAngle = Math.atan2(H / 2 - head.y, W / 2 - head.x);
+        aiSnake.wanderAngle = toCenterAngle + (Math.random() - 0.5) * Math.PI * 0.6;
+        aiSnake.wanderTimer = 40 + Math.random() * 30;
+    }
+
+    if (aiSnake.wanderTimer > 0) {
+        aiSnake.target = aiSnake.wanderAngle;
+        aiSnake.wanderTimer--;
+    } else {
+        // 朝食物转向，但加入一点随机漂移让行为不那么机械
+        const rawAngle = Math.atan2(targetY - head.y, targetX - head.x);
+        const drift = (Math.random() - 0.5) * 0.08;
+        aiSnake.target = rawAngle + drift;
+    }
+
+    // 平滑转向
+    let diff = aiSnake.target - aiSnake.angle;
+    while (diff >  Math.PI) diff -= Math.PI * 2;
+    while (diff < -Math.PI) diff += Math.PI * 2;
+    const step = AI_TURN_SPEED * dt;
+    aiSnake.angle += Math.abs(diff) < step ? diff : Math.sign(diff) * step;
+
+    // 移动
+    const newHead = {
+        x: head.x + Math.cos(aiSnake.angle) * AI_SPEED * dt,
+        y: head.y + Math.sin(aiSnake.angle) * AI_SPEED * dt,
+    };
+    aiSnake.points.unshift(newHead);
+
+    // 裁剪尾巴
+    let total = 0;
+    for (let i = 1; i < aiSnake.points.length; i++) {
+        const p = aiSnake.points[i], q = aiSnake.points[i - 1];
+        total += Math.hypot(p.x - q.x, p.y - q.y);
+        if (total >= aiSnake.length) { aiSnake.points.length = i + 1; break; }
+    }
+
+    // AI 碰墙 → 重生（不影响玩家）
+    if (newHead.x < AI_RADIUS || newHead.x > W - AI_RADIUS ||
+        newHead.y < AI_RADIUS || newHead.y > H - AI_RADIUS) {
+        // 短暂延迟后重生
+        aiSnake.active = false;
+        setTimeout(() => { if (gameRunning && !isPaused) initAiSnake(); }, 1200);
+        return;
+    }
+
+    // AI 吃普通食物
+    if (Math.hypot(newHead.x - food.x, newHead.y - food.y) < AI_RADIUS + FOOD_RADIUS) {
+        aiSnake.score += 5;
+        aiSnake.length += 20;
+        aiScoreEl.textContent = aiSnake.score;
+        spawnFood();
+        maybeSpawnEgg();
+        showAiScorePopup(food.x, food.y);
+    }
+
+    // AI 吃彩蛋
+    if (eggFood && Math.hypot(newHead.x - eggFood.x, newHead.y - eggFood.y) < AI_RADIUS + FOOD_RADIUS * 1.4) {
+        aiSnake.score += 100;
+        aiSnake.length += 40;
+        aiScoreEl.textContent = aiSnake.score;
+        showAiScorePopup(eggFood.x, eggFood.y, true);
+        eggFood = null;
+    }
+}
+
+// AI 得分小提示（用不同颜色区别于玩家）
+const aiPopups = [];
+function showAiScorePopup(x, y, isEgg = false) {
+    aiPopups.push({ x, y, isEgg, life: 50, vy: -1.0 });
+}
+
+function drawAiSnake() {
+    if (!aiSnake.active || aiSnake.points.length < 2) return;
+
+    const pts = aiSnake.points;
+    let totalLen = 0;
+    const dists = [0];
+    for (let i = 1; i < pts.length; i++) {
+        totalLen += Math.hypot(pts[i].x - pts[i-1].x, pts[i].y - pts[i-1].y);
+        dists.push(totalLen);
+    }
+
+    // 身体
+    for (let i = pts.length - 2; i >= 0; i--) {
+        const t = totalLen > 0 ? 1 - dists[i] / totalLen : 0;
+        const alpha = 0.2 + 0.7 * t;
+        const radius = AI_RADIUS * (0.35 + 0.65 * t);
+        ctx.globalAlpha = alpha;
+        ctx.strokeStyle = AI_COLOR_BODY;
+        ctx.lineWidth = radius * 2;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.beginPath();
+        ctx.moveTo(pts[i].x, pts[i].y);
+        ctx.lineTo(pts[i+1].x, pts[i+1].y);
+        ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+
+    // 蛇头
+    const hx = pts[0].x, hy = pts[0].y;
+    const hGrad = ctx.createRadialGradient(hx - 1, hy - 1, 1, hx, hy, AI_RADIUS + 2);
+    hGrad.addColorStop(0, '#ff8c55');
+    hGrad.addColorStop(1, AI_COLOR_HEAD);
+    ctx.fillStyle = hGrad;
+    ctx.shadowColor = AI_COLOR_HEAD;
+    ctx.shadowBlur = 10;
+    ctx.beginPath(); ctx.arc(hx, hy, AI_RADIUS + 1, 0, Math.PI*2); ctx.fill();
+    ctx.shadowBlur = 0;
+
+    // 眼睛
+    const eyeOff = AI_RADIUS * 0.55;
+    const perp   = aiSnake.angle + Math.PI / 2;
+    const eyeFwd = AI_RADIUS * 0.4;
+    const eyeR   = AI_RADIUS * 0.28;
+    [1, -1].forEach(s => {
+        const ex = hx + Math.cos(aiSnake.angle) * eyeFwd + Math.cos(perp) * eyeOff * s;
+        const ey = hy + Math.sin(aiSnake.angle) * eyeFwd + Math.sin(perp) * eyeOff * s;
+        ctx.fillStyle = '#fff';
+        ctx.beginPath(); ctx.arc(ex, ey, eyeR, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = '#111';
+        ctx.beginPath(); ctx.arc(ex + Math.cos(aiSnake.angle)*eyeR*0.4,
+            ey + Math.sin(aiSnake.angle)*eyeR*0.4, eyeR*0.55, 0, Math.PI*2); ctx.fill();
+    });
+
+    // "AI" 标签
+    const fontSize = Math.round((AI_RADIUS + 1) * 1.5);
+    ctx.save();
+    ctx.font = `bold ${fontSize}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.shadowColor = 'rgba(0,0,0,0.8)';
+    ctx.shadowBlur = 3;
+    ctx.fillStyle = '#fff';
+    ctx.fillText('AI', hx, hy);
+    ctx.restore();
+
+    // AI 得分小气泡
+    for (let i = aiPopups.length - 1; i >= 0; i--) {
+        const p = aiPopups[i];
+        ctx.save();
+        ctx.globalAlpha = p.life / 50;
+        ctx.font = 'bold 11px sans-serif';
+        ctx.fillStyle = '#ff9f6b';
+        ctx.textAlign = 'center';
+        ctx.fillText(p.isEgg ? 'AI🥚' : 'AI+5', p.x, p.y);
+        ctx.restore();
+        p.y += p.vy;
+        p.life--;
+        if (p.life <= 0) aiPopups.splice(i, 1);
+    }
+}
+
+// AI 得分展示在 HUD（可选：右下角小角标）
+
+function drawEggFood() {
+    if (!eggFood) return;
+    const t = performance.now() / 1000;
+    const pulse = 0.88 + 0.12 * Math.sin(t * 3);
+    const r = FOOD_RADIUS * 1.5 * pulse;
+    const fx = eggFood.x, fy = eggFood.y;
+
+    // 外层彩虹光晕（旋转）
+    ctx.save();
+    ctx.translate(fx, fy);
+    const haloR = r * 2.4;
+    for (let i = 0; i < 6; i++) {
+        const a = t * 1.8 + (i * Math.PI / 3);
+        const hx2 = Math.cos(a) * r * 0.7;
+        const hy2 = Math.sin(a) * r * 0.7;
+        const hg = ctx.createRadialGradient(hx2, hy2, 0, hx2, hy2, haloR * 0.7);
+        hg.addColorStop(0, ['#ff2d55','#ff9500','#ffcc00','#34c759','#007aff','#bf5af2'][i] + '66');
+        hg.addColorStop(1, 'transparent');
+        ctx.fillStyle = hg;
+        ctx.beginPath(); ctx.arc(hx2, hy2, haloR * 0.7, 0, Math.PI*2); ctx.fill();
+    }
+    ctx.restore();
+
+    // 蛋体（椭圆渐变）
+    ctx.save();
+    ctx.translate(fx, fy);
+    ctx.scale(1, 1.25); // 椭圆形
+    const eggGrad = ctx.createRadialGradient(-r*0.25, -r*0.3, r*0.05, 0, 0, r);
+    eggGrad.addColorStop(0, '#fff9c4');
+    eggGrad.addColorStop(0.4, '#ffe066');
+    eggGrad.addColorStop(1, '#ff9500');
+    ctx.shadowColor = '#ffcc00';
+    ctx.shadowBlur = 20;
+    ctx.fillStyle = eggGrad;
+    ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI*2); ctx.fill();
+    ctx.restore();
+
+    // 彩色条纹
+    ctx.save();
+    ctx.translate(fx, fy);
+    ctx.scale(1, 1.25);
+    ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI*2); ctx.clip();
+    for (let i = 0; i < 3; i++) {
+        const stripeColors = ['#ff2d55','#007aff','#34c759'];
+        ctx.strokeStyle = stripeColors[i] + 'aa';
+        ctx.lineWidth = r * 0.28;
+        ctx.beginPath();
+        ctx.arc(0, 0, r * (0.3 + i * 0.28), 0, Math.PI);
+        ctx.stroke();
+    }
+    ctx.restore();
+
+    // 高光
+    ctx.save();
+    ctx.translate(fx, fy - r * 0.12);
+    ctx.scale(1, 1.25);
+    ctx.fillStyle = 'rgba(255,255,255,0.45)';
+    ctx.beginPath(); ctx.ellipse(-r*0.18, -r*0.28, r*0.28, r*0.18, -0.5, 0, Math.PI*2); ctx.fill();
+    ctx.restore();
+
+    // "500" 标签
+    ctx.save();
+    ctx.font = `bold ${Math.round(r * 0.85)}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.shadowColor = 'rgba(0,0,0,0.6)';
+    ctx.shadowBlur = 4;
+    ctx.fillStyle = '#fff';
+    ctx.fillText('★500', fx, fy + r * 1.55 * 1.25 + r * 0.5);
+    ctx.restore();
 }
 
 // ── COMBO ─────────────────────────────────
