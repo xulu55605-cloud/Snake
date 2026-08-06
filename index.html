@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>贪吃蛇_芊雨版</title>
+    <title>贪吃蛇 音效°</title>
     
     <!-- PWA 配置支持 -->
     <link rel="manifest" href="./manifest.json">
@@ -164,7 +164,7 @@
 <!-- MENU -->
 <div class="page active" id="menuPage">
     <div class="logo">🐍</div>
-    <div class="game-title">芊雨版</div>
+    <div class="game-title">贪吃蛇 音效</div>
     <div class="menu-card">
         <div>
             <div class="field-label">玩家名字</div>
@@ -175,7 +175,7 @@
             <div class="speed-grid">
                 <button class="speed-btn" data-speed="1.5">极慢</button>
                 <button class="speed-btn" data-speed="2.5">慢速</button>
-                <button class="speed-btn active" data-speed="3.0">中速</button>
+                <button class="speed-btn active" data-speed="3.5">中速</button>
                 <button class="speed-btn" data-speed="4.5">快速</button>
             </div>
         </div>
@@ -203,6 +203,7 @@
         </div>
         <div class="hud-actions">
             <button class="hud-btn hud-pause" id="pauseBtn">暂停</button>
+            <button class="hud-btn" id="muteBtn" style="background:rgba(255,255,255,.1);color:var(--text);">🔊</button>
             <button class="hud-btn hud-exit"  id="exitBtn">退出</button>
         </div>
     </div>
@@ -241,6 +242,17 @@ const loadBtn      = document.getElementById('loadBtn');
 const pauseBtn     = document.getElementById('pauseBtn');
 const resumeBtn    = document.getElementById('resumeBtn');
 const exitBtn      = document.getElementById('exitBtn');
+const muteBtn      = document.getElementById('muteBtn');
+
+let isMuted = false;
+muteBtn.addEventListener('click', () => {
+    isMuted = !isMuted;
+    muteBtn.textContent = isMuted ? '🔇' : '🔊';
+    if (audioCtx) {
+        isMuted ? audioCtx.suspend() : audioCtx.resume();
+    }
+    vibrate(isMuted ? 0 : 15);
+});
 const speedBtns    = document.querySelectorAll('.speed-btn');
 const lbList       = document.getElementById('leaderboardList');
 const menuPage     = document.getElementById('menuPage');
@@ -444,6 +456,144 @@ function handleKey(e) {
     if (e.key === ' ') togglePause();
 }
 
+// ── 音效 & 震动系统 ───────────────────────
+const AudioCtx = window.AudioContext || window.webkitAudioContext;
+let audioCtx = null;
+
+function getAudioCtx() {
+    if (!audioCtx) audioCtx = new AudioCtx();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    return audioCtx;
+}
+
+// 通用震动（毫秒 or 模式数组）
+function vibrate(pattern) {
+    if (navigator.vibrate) navigator.vibrate(pattern);
+}
+
+// ── 各场景音效 ────────────────────────────
+
+// 吃普通食物：轻快的"叮"
+function sfxEat(tier = 1) {
+    const ac = getAudioCtx();
+    const freq = 520 + tier * 60; // 得分越高音调越亮
+    const osc = ac.createOscillator();
+    const gain = ac.createGain();
+    osc.connect(gain); gain.connect(ac.destination);
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(freq, ac.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(freq * 1.5, ac.currentTime + 0.08);
+    gain.gain.setValueAtTime(0.18, ac.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.18);
+    osc.start(); osc.stop(ac.currentTime + 0.18);
+    vibrate(20);
+}
+
+// 吃彩蛋：华丽上扬琶音
+function sfxEgg() {
+    const ac = getAudioCtx();
+    const notes = [523, 659, 784, 1047, 1319];
+    notes.forEach((freq, i) => {
+        const osc  = ac.createOscillator();
+        const gain = ac.createGain();
+        osc.connect(gain); gain.connect(ac.destination);
+        osc.type = 'triangle';
+        const t = ac.currentTime + i * 0.07;
+        osc.frequency.setValueAtTime(freq, t);
+        gain.gain.setValueAtTime(0.22, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.28);
+        osc.start(t); osc.stop(t + 0.28);
+    });
+    vibrate([15, 10, 15, 10, 40]);
+}
+
+// Combo：短促三连击
+function sfxCombo() {
+    const ac = getAudioCtx();
+    [880, 1100, 1320].forEach((freq, i) => {
+        const osc  = ac.createOscillator();
+        const gain = ac.createGain();
+        osc.connect(gain); gain.connect(ac.destination);
+        osc.type = 'square';
+        const t = ac.currentTime + i * 0.09;
+        osc.frequency.setValueAtTime(freq, t);
+        gain.gain.setValueAtTime(0.08, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
+        osc.start(t); osc.stop(t + 0.12);
+    });
+    vibrate([10, 20, 10, 20, 60]);
+}
+
+// 靠近墙壁：低频脉冲警告音（每隔一段触发一次，避免刷屏）
+let wallWarnCooldown = 0;
+function sfxWallWarn() {
+    if (wallWarnCooldown > 0) return;
+    wallWarnCooldown = 18;
+    const ac = getAudioCtx();
+    const osc  = ac.createOscillator();
+    const gain = ac.createGain();
+    osc.connect(gain); gain.connect(ac.destination);
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(80, ac.currentTime);
+    gain.gain.setValueAtTime(0.09, ac.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.12);
+    osc.start(); osc.stop(ac.currentTime + 0.12);
+    vibrate(12);
+}
+
+// 撞墙死亡：下降噪声爆炸感
+function sfxDie() {
+    const ac = getAudioCtx();
+    // 噪声冲击
+    const bufSize = ac.sampleRate * 0.5;
+    const buf = ac.createBuffer(1, bufSize, ac.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < bufSize; i++) data[i] = (Math.random() * 2 - 1);
+    const src  = ac.createBufferSource();
+    const gain = ac.createGain();
+    const filt = ac.createBiquadFilter();
+    src.buffer = buf;
+    filt.type = 'lowpass'; filt.frequency.value = 400;
+    src.connect(filt); filt.connect(gain); gain.connect(ac.destination);
+    gain.gain.setValueAtTime(0.4, ac.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.5);
+    src.start(); src.stop(ac.currentTime + 0.5);
+    // 下滑音调
+    const osc  = ac.createOscillator();
+    const og   = ac.createGain();
+    osc.connect(og); og.connect(ac.destination);
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(300, ac.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(40, ac.currentTime + 0.4);
+    og.gain.setValueAtTime(0.25, ac.currentTime);
+    og.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.4);
+    osc.start(); osc.stop(ac.currentTime + 0.4);
+    vibrate([80, 30, 80, 30, 200]);
+}
+
+// 开始游戏：上扬起跑音
+function sfxStart() {
+    const ac = getAudioCtx();
+    [330, 415, 523].forEach((freq, i) => {
+        const osc  = ac.createOscillator();
+        const gain = ac.createGain();
+        osc.connect(gain); gain.connect(ac.destination);
+        osc.type = 'sine';
+        const t = ac.currentTime + i * 0.1;
+        osc.frequency.setValueAtTime(freq, t);
+        gain.gain.setValueAtTime(0.15, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
+        osc.start(t); osc.stop(t + 0.2);
+    });
+}
+
+// Canvas 震动动画
+let shakeFrames = 0, shakeIntensity = 0;
+function triggerShake(frames = 8, intensity = 5) {
+    shakeFrames = frames;
+    shakeIntensity = intensity;
+}
+
 // ── INIT GAME ─────────────────────────────
 function initGame(isLoaded) {
     showPage('gamePage');
@@ -479,6 +629,7 @@ function initGame(isLoaded) {
             }
             spawnFood();
             initAiSnake();
+            sfxStart();
             autoSaveGame(); // ⚡ 开局即存档一次
         } else {
             // 💡【读档终极安全防护】：
@@ -549,7 +700,17 @@ function update(dt) {
     // 撞墙检测
     if (newHead.x < SNAKE_RADIUS + 1 || newHead.x > W - SNAKE_RADIUS - 1 ||
         newHead.y < SNAKE_RADIUS + 1 || newHead.y > H - SNAKE_RADIUS - 1) {
+        sfxDie();
+        triggerShake(20, 10);
         handleGameOver(); return;
+    }
+
+    // 靠近墙壁警告
+    if (wallWarnCooldown > 0) wallWarnCooldown--;
+    const WARN_DIST = 24;
+    if (newHead.x < WARN_DIST || newHead.x > W - WARN_DIST ||
+        newHead.y < WARN_DIST || newHead.y > H - WARN_DIST) {
+        sfxWallWarn();
     }
 
     // 吃食物
@@ -561,9 +722,11 @@ function update(dt) {
         scoreEl.textContent = score;
         snakeLength += 30;
         showFloatingScore(food.x, food.y, pts);
+        sfxEat(tier);
+        triggerShake(4, 2);
         if (foodEatenCount % 5 === 0) triggerCombo();
         spawnFood();
-        maybeSpawnEgg(); // 每次吃完普通食物后，有1/15概率生成彩蛋
+        maybeSpawnEgg();
         autoSaveGame();
     }
 
@@ -573,6 +736,8 @@ function update(dt) {
         scoreEl.textContent = score;
         snakeLength += 80;
         showFloatingScore(eggFood.x, eggFood.y, 500, true);
+        sfxEgg();
+        triggerShake(12, 6);
         eggFood = null;
     }
 }
@@ -591,6 +756,15 @@ function trimTrail() {
 
 // ── DRAW ──────────────────────────────────
 function draw() {
+    // 画布震动
+    ctx.save();
+    if (shakeFrames > 0) {
+        const sx = (Math.random() - 0.5) * shakeIntensity * 2;
+        const sy = (Math.random() - 0.5) * shakeIntensity * 2;
+        ctx.translate(sx, sy);
+        shakeFrames--;
+    }
+
     ctx.fillStyle = '#0d0d1a';
     ctx.fillRect(0, 0, W, H);
 
@@ -694,6 +868,7 @@ function draw() {
     drawFood();
     drawEggFood();
     drawFloatingScores();
+    ctx.restore(); // 结束震动变换
 }
 
 // ── DRAW FOOD ─────────────────────────────
@@ -1151,6 +1326,8 @@ function triggerCombo() {
     comboText.textContent = `🔥 COMBO x${Math.floor(foodEatenCount/5)}!`;
     comboText.classList.add('show');
     currentHeadColor = headThemes[Math.floor(Math.random() * headThemes.length)];
+    sfxCombo();
+    triggerShake(8, 4);
     setTimeout(() => {
         canvas.classList.remove('combo-glow');
         comboText.classList.remove('show');
