@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>贪吃蛇_千雨版</title>
+    <title>贪吃蛇_芊雨版</title>
     
     <!-- PWA 配置支持 -->
     <link rel="manifest" href="./manifest.json">
@@ -89,8 +89,8 @@
         .hud-pause { background: rgba(255,255,255,.12); color: var(--text); }
         .hud-exit  { background: rgba(233,69,96,.2); color: var(--accent); }
 
-        .canvas-wrap { flex: 1; width: 100%; display: flex; align-items: center;
-            justify-content: center; padding: 8px; position: relative; overflow: hidden; }
+        .canvas-wrap { flex: 1; width: 100%; display: flex; align-items: flex-start;
+            justify-content: center; position: relative; overflow: hidden; }
         canvas { display: block; border-radius: 14px;
             border: 2px solid rgba(255,255,255,.08); touch-action: none; background: #0d0d1a; }
 
@@ -164,7 +164,7 @@
 <!-- MENU -->
 <div class="page active" id="menuPage">
     <div class="logo">🐍</div>
-    <div class="game-title">贪吃蛇_千雨版</div>
+    <div class="game-title">芊雨版</div>
     <div class="menu-card">
         <div>
             <div class="field-label">玩家名字</div>
@@ -251,16 +251,22 @@ const joystickZone = document.getElementById('joystickZone');
 const joystickHandle = document.getElementById('joystickHandle');
 
 // ── CANVAS CALIBRATION ────────────────────
-let W = 320, H = 320;
+let W = 320, H = 480;
 
 function calibrateCanvas() {
-    const HUD_H = 72, STICK_H = 234;
-    const availH = window.innerHeight - HUD_H - STICK_H - 16;
-    const availW = window.innerWidth - 16;
-    const side = Math.min(availH, availW, 480);
-    W = H = Math.max(240, side);
+    const HUD_H   = 72;
+    const STICK_H = 234;
+    const PADDING = 16;
+    const availH  = window.innerHeight - HUD_H - STICK_H - PADDING;
+    const availW  = window.innerWidth  - PADDING;
+
+    // 宽度用满屏幕宽，高度用满剩余空间（不再强制正方形）
+    W = Math.max(240, availW);
+    H = Math.max(240, availH);
+
     canvas.width  = W; canvas.height = H;
-    canvas.style.width = W+'px'; canvas.style.height = H+'px';
+    canvas.style.width  = W + 'px';
+    canvas.style.height = H + 'px';
 }
 calibrateCanvas();
 window.addEventListener('resize', () => { calibrateCanvas(); });
