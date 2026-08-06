@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>贪吃蛇-芊旭知版</title>
+    <title>贪吃蛇 知旭乐版</title>
     
     <!-- PWA 配置支持 -->
     <link rel="manifest" href="./manifest.json">
@@ -174,6 +174,68 @@
             50%  { border-color: #ffcc00;       box-shadow: 0 0 30px rgba(255,204,0,.8); }
             100% { border-color: rgba(255,255,255,.08); box-shadow: none; }
         }
+
+        /* ── 游戏模式选择 ── */
+        .mode-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .mode-btn { padding: 10px 6px; border: 2px solid rgba(255,255,255,.12);
+            background: rgba(255,255,255,.04); border-radius: 12px; cursor: pointer;
+            display: flex; flex-direction: column; align-items: center; gap: 3px; transition: all .15s; }
+        .mode-btn .mode-icon { font-size: 20px; }
+        .mode-btn .mode-label { font-size: 11px; font-weight: 700; color: var(--muted); }
+        .mode-btn .mode-desc  { font-size: 9px; color: rgba(255,255,255,.3); }
+        .mode-btn.active { border-color: var(--accent2); background: rgba(0,212,170,.12); }
+        .mode-btn.active .mode-label { color: var(--accent2); }
+
+        /* ── 倒计时 HUD ── */
+        #timerDisplay { font-size: 18px; font-weight: 900; color: #ffcc00;
+            letter-spacing: 1px; display: none; }
+        #timerDisplay.urgent { color: #ff2d55; animation: timerPulse .4s infinite alternate; }
+        @keyframes timerPulse { from { opacity:1; } to { opacity:.4; } }
+
+        /* ── 成就弹窗 ── */
+        .achievement-toast {
+            position: fixed; top: 80px; left: 50%; transform: translateX(-50%) translateY(-20px);
+            background: linear-gradient(135deg,#1c1c3a,#2a1a4a);
+            border: 1px solid #af52de; border-radius: 16px; padding: 12px 20px;
+            display: flex; align-items: center; gap: 12px; z-index: 999;
+            opacity: 0; pointer-events: none; transition: all .4s cubic-bezier(.175,.885,.32,1.275);
+            max-width: 320px; box-shadow: 0 8px 32px rgba(175,82,222,.4);
+        }
+        .achievement-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+        .ach-icon { font-size: 28px; flex-shrink: 0; }
+        .ach-text .ach-title { font-size: 11px; font-weight: 700; color: #af52de;
+            letter-spacing: 1px; text-transform: uppercase; }
+        .ach-text .ach-name { font-size: 14px; font-weight: 800; color: #fff; }
+        .ach-text .ach-desc { font-size: 11px; color: rgba(255,255,255,.55); }
+
+        /* ── 游戏结束统计弹窗 ── */
+        .stats-modal { position: fixed; inset: 0; background: rgba(10,10,25,.92);
+            backdrop-filter: blur(8px); z-index: 500; display: none;
+            flex-direction: column; justify-content: center; align-items: center; gap: 0; }
+        .stats-modal.show { display: flex; }
+        .stats-card { width: 100%; max-width: 340px; background: var(--surface);
+            border: 1px solid rgba(255,255,255,.1); border-radius: 24px; padding: 28px 24px;
+            display: flex; flex-direction: column; gap: 20px; }
+        .stats-header { text-align: center; }
+        .stats-title { font-size: 22px; font-weight: 900;
+            background: linear-gradient(135deg,var(--accent2),var(--accent));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .stats-subtitle { font-size: 13px; color: var(--muted); margin-top: 4px; }
+        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .stat-item { background: rgba(255,255,255,.04); border-radius: 12px;
+            padding: 12px; text-align: center; border: 1px solid rgba(255,255,255,.06); }
+        .stat-val { font-size: 24px; font-weight: 900; color: var(--accent2); }
+        .stat-lbl { font-size: 11px; color: var(--muted); margin-top: 2px; }
+        .stat-item.highlight { border-color: rgba(255,204,0,.3); background: rgba(255,204,0,.06); }
+        .stat-item.highlight .stat-val { color: #ffcc00; }
+        .vs-row { display: flex; align-items: center; justify-content: space-around;
+            background: rgba(255,255,255,.03); border-radius: 12px; padding: 12px; }
+        .vs-side { text-align: center; }
+        .vs-side .vs-score { font-size: 28px; font-weight: 900; }
+        .vs-side .vs-name  { font-size: 11px; color: var(--muted); margin-top: 2px; }
+        .vs-divider { font-size: 18px; font-weight: 900; color: var(--muted); }
+        .winner-badge { font-size: 22px; font-weight: 900; text-align: center; }
+        .stats-btns { display: flex; flex-direction: column; gap: 10px; }
     </style>
 </head>
 <body>
@@ -181,11 +243,26 @@
 <!-- MENU -->
 <div class="page active" id="menuPage">
     <div class="logo">🐍</div>
-    <div class="game-title">贪吃蛇-芊旭知版</div>
+    <div class="game-title">贪吃蛇 知旭乐版</div>
     <div class="menu-card">
         <div>
             <div class="field-label">玩家名字</div>
             <input type="text" id="playerName" placeholder="输入名字" maxlength="10">
+        </div>
+        <div>
+            <div class="field-label">⏱ 游戏模式</div>
+            <div class="mode-grid">
+                <button class="mode-btn active" data-mode="classic" id="modeClassic">
+                    <span class="mode-icon">🐍</span>
+                    <span class="mode-label">经典模式</span>
+                    <span class="mode-desc">无限时间</span>
+                </button>
+                <button class="mode-btn" data-mode="timed" id="modeTimed">
+                    <span class="mode-icon">⏱</span>
+                    <span class="mode-label">限时冲分</span>
+                    <span class="mode-desc">60秒倒计时</span>
+                </button>
+            </div>
         </div>
         <div>
             <div class="field-label">🎨 蛇皮肤</div>
@@ -222,6 +299,7 @@
             <div style="font-size:11px;font-weight:700;color:#ff6b35;letter-spacing:1px;">🤖 AI</div>
             <div style="font-size:16px;font-weight:800;color:#ff6b35;"><span id="aiScore">0</span> 分</div>
         </div>
+        <div id="timerDisplay">60s</div>
         <div class="hud-actions">
             <button class="hud-btn hud-pause" id="pauseBtn">暂停</button>
             <button class="hud-btn" id="muteBtn" style="background:rgba(255,255,255,.1);color:var(--text);">🔊</button>
@@ -244,6 +322,60 @@
             <span class="j-label j-e">E</span>
             <canvas id="dirCanvas" width="210" height="210"></canvas>
             <div class="joystick-handle" id="joystickHandle">✽</div>
+        </div>
+    </div>
+</div>
+
+<!-- Achievement Toast -->
+<div class="achievement-toast" id="achToast">
+    <div class="ach-icon" id="achIcon">🎖️</div>
+    <div class="ach-text">
+        <div class="ach-title">成就解锁！</div>
+        <div class="ach-name" id="achName">首次吃到彩蛋</div>
+        <div class="ach-desc" id="achDesc">你真棒！</div>
+    </div>
+</div>
+
+<!-- Stats Modal -->
+<div class="stats-modal" id="statsModal">
+    <div class="stats-card">
+        <div class="stats-header">
+            <div class="stats-title" id="statsTitle">💥 游戏结束</div>
+            <div class="stats-subtitle" id="statsSubtitle">本局统计</div>
+        </div>
+        <div class="vs-row">
+            <div class="vs-side">
+                <div class="vs-score" id="statsPlayerScore" style="color:#00d4aa">0</div>
+                <div class="vs-name" id="statsPlayerName">玩家</div>
+            </div>
+            <div class="vs-divider">VS</div>
+            <div class="vs-side">
+                <div class="vs-score" id="statsAiScore" style="color:#ff6b35">0</div>
+                <div class="vs-name">🤖 AI</div>
+            </div>
+        </div>
+        <div class="winner-badge" id="statsWinner"></div>
+        <div class="stats-grid">
+            <div class="stat-item">
+                <div class="stat-val" id="statFood">0</div>
+                <div class="stat-lbl">🍎 吃掉食物</div>
+            </div>
+            <div class="stat-item highlight">
+                <div class="stat-val" id="statEgg">0</div>
+                <div class="stat-lbl">🥚 彩蛋数</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-val" id="statMaxLen">0</div>
+                <div class="stat-lbl">📏 最长蛇身</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-val" id="statAchCount">0</div>
+                <div class="stat-lbl">🎖️ 成就数</div>
+            </div>
+        </div>
+        <div class="stats-btns">
+            <button class="btn-primary" id="statsRestartBtn">再来一局</button>
+            <button class="btn-secondary" id="statsMenuBtn">返回主菜单</button>
         </div>
     </div>
 </div>
@@ -762,6 +894,262 @@ function triggerShake(frames = 8, intensity = 5) {
     shakeIntensity = intensity;
 }
 
+// ── GAME MODE ─────────────────────────────
+let gameMode = 'classic'; // 'classic' | 'timed'
+let timerSeconds = 60;
+let timerInterval = null;
+const timerDisplay = document.getElementById('timerDisplay');
+const modeClassicBtn = document.getElementById('modeClassic');
+const modeTimedBtn   = document.getElementById('modeTimed');
+[modeClassicBtn, modeTimedBtn].forEach(btn => {
+    btn.addEventListener('click', () => {
+        [modeClassicBtn, modeTimedBtn].forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        gameMode = btn.dataset.mode;
+    });
+});
+
+function startTimer() {
+    timerSeconds = 60;
+    timerDisplay.style.display = 'block';
+    timerDisplay.textContent = '60s';
+    timerDisplay.classList.remove('urgent');
+    clearInterval(timerInterval);
+    timerInterval = setInterval(() => {
+        if (isPaused) return;
+        timerSeconds--;
+        timerDisplay.textContent = timerSeconds + 's';
+        if (timerSeconds <= 10) timerDisplay.classList.add('urgent');
+        if (timerSeconds <= 0) {
+            clearInterval(timerInterval);
+            handleGameOver(true);
+        }
+    }, 1000);
+}
+
+function stopTimer() {
+    clearInterval(timerInterval);
+    timerDisplay.style.display = 'none';
+    timerDisplay.classList.remove('urgent');
+}
+
+// ── ACHIEVEMENTS ──────────────────────────
+const ACHIEVEMENTS = [
+    { id: 'first_food',   icon: '🍎', name: '第一口！',      desc: '吃掉第1个食物',        check: () => foodEatenCount >= 1 },
+    { id: 'ten_food',     icon: '🔟', name: '十全十美',      desc: '吃掉10个食物',          check: () => foodEatenCount >= 10 },
+    { id: 'first_egg',    icon: '🥚', name: '彩蛋猎人',      desc: '第一次吃到彩蛋',        check: () => eggsEaten >= 1 },
+    { id: 'beat_ai',      icon: '🏆', name: '击败AI！',      desc: '得分超过AI',            check: () => score > aiSnake.score && aiSnake.score > 0 },
+    { id: 'combo5',       icon: '🔥', name: 'COMBO大师',    desc: '触发5次Combo',          check: () => comboCount >= 5 },
+    { id: 'magnet',       icon: '🧲', name: '磁力大师',      desc: '第一次使用磁铁道具',    check: () => magnetUsed },
+    { id: 'freeze',       icon: '❄️', name: '冰封时刻',      desc: '冻结AI蛇',              check: () => freezeUsed },
+    { id: 'survived_poison',icon:'💪',name: '百毒不侵',      desc: '中毒后得分仍超过100',   check: () => poisonSurvived && score >= 100 },
+    { id: 'score200',     icon: '💯', name: '两百俱乐部',    desc: '得分达到200分',         check: () => score >= 200 },
+    { id: 'score500',     icon: '⭐', name: '五百分传奇',    desc: '得分达到500分',         check: () => score >= 500 },
+    { id: 'portal',       icon: '🌀', name: '传送门旅行者',  desc: '第一次使用传送门',      check: () => portalUsed },
+    { id: 'long_snake',   icon: '📏', name: '巨蟒出没',      desc: '蛇身长度超过300',       check: () => snakeLength >= 300 },
+];
+const unlockedAch = new Set();
+let eggsEaten = 0, comboCount = 0, magnetUsed = false, freezeUsed = false;
+let poisonSurvived = false, portalUsed = false;
+let sessionAchCount = 0;
+
+const achToast   = document.getElementById('achToast');
+const achIcon    = document.getElementById('achIcon');
+const achName    = document.getElementById('achName');
+const achDesc    = document.getElementById('achDesc');
+let achQueue = [], achShowing = false;
+
+function checkAchievements() {
+    ACHIEVEMENTS.forEach(a => {
+        if (!unlockedAch.has(a.id) && a.check()) {
+            unlockedAch.add(a.id);
+            sessionAchCount++;
+            achQueue.push(a);
+            drainAchQueue();
+        }
+    });
+}
+function drainAchQueue() {
+    if (achShowing || achQueue.length === 0) return;
+    achShowing = true;
+    const a = achQueue.shift();
+    achIcon.textContent = a.icon;
+    achName.textContent = a.name;
+    achDesc.textContent = a.desc;
+    achToast.classList.add('show');
+    // sfx: achievement jingle
+    try {
+        const ac = getAudioCtx();
+        [523,659,784,1047].forEach((f,i)=>{
+            const o=ac.createOscillator(),g=ac.createGain();
+            o.connect(g);g.connect(ac.destination);
+            o.type='triangle';
+            const t=ac.currentTime+i*0.08;
+            o.frequency.setValueAtTime(f,t);
+            g.gain.setValueAtTime(0.15,t);
+            g.gain.exponentialRampToValueAtTime(0.001,t+0.2);
+            o.start(t);o.stop(t+0.2);
+        });
+    } catch(e){}
+    vibrate([20,10,20,10,50]);
+    setTimeout(() => {
+        achToast.classList.remove('show');
+        setTimeout(() => { achShowing = false; drainAchQueue(); }, 400);
+    }, 2800);
+}
+
+// ── STATS TRACKING ────────────────────────
+let maxSnakeLength = 60;
+const statsModal     = document.getElementById('statsModal');
+const statsTitle     = document.getElementById('statsTitle');
+const statsSubtitle  = document.getElementById('statsSubtitle');
+const statsPlayerScore = document.getElementById('statsPlayerScore');
+const statsPlayerName  = document.getElementById('statsPlayerName');
+const statsAiScore   = document.getElementById('statsAiScore');
+const statsWinner    = document.getElementById('statsWinner');
+const statFood       = document.getElementById('statFood');
+const statEgg        = document.getElementById('statEgg');
+const statMaxLen     = document.getElementById('statMaxLen');
+const statAchCount   = document.getElementById('statAchCount');
+const statsRestartBtn = document.getElementById('statsRestartBtn');
+const statsMenuBtn    = document.getElementById('statsMenuBtn');
+
+statsRestartBtn.addEventListener('click', () => {
+    statsModal.classList.remove('show');
+    initGame(false);
+});
+statsMenuBtn.addEventListener('click', () => {
+    statsModal.classList.remove('show');
+    showPage('menuPage');
+    updateLeaderboardUI();
+});
+
+function showStatsModal(isTimeout = false) {
+    const playerWins = score >= aiSnake.score;
+    statsTitle.textContent    = isTimeout ? '⏱ 时间到！' : '💥 游戏结束';
+    statsSubtitle.textContent = isTimeout ? `限时60秒冲分结束` : `${currentPlayerName} 撞墙了`;
+    statsPlayerScore.textContent = score;
+    statsPlayerName.textContent  = currentPlayerName || '玩家';
+    statsAiScore.textContent     = aiSnake.score;
+    statFood.textContent     = foodEatenCount;
+    statEgg.textContent      = eggsEaten;
+    statMaxLen.textContent   = Math.round(maxSnakeLength);
+    statAchCount.textContent = sessionAchCount;
+    const diff = score - aiSnake.score;
+    statsWinner.textContent = playerWins
+        ? `🏆 玩家胜！领先 ${diff} 分`
+        : `🤖 AI胜！落后 ${Math.abs(diff)} 分`;
+    statsWinner.style.color = playerWins ? '#00d4aa' : '#ff6b35';
+    statsModal.classList.add('show');
+}
+
+// ── PORTALS ───────────────────────────────
+let portals = null; // { a:{x,y,angle}, b:{x,y,angle} } or null
+let portalCooldown = 0; // 防止连续传送
+
+function spawnPortals() {
+    // 随机在四条边各选一侧，成对出现
+    const edges = ['top','bottom','left','right'];
+    const shuffle = edges.sort(() => Math.random()-0.5);
+    const edgeA = shuffle[0], edgeB = shuffle[1];
+    portals = { a: edgePoint(edgeA), b: edgePoint(edgeB) };
+}
+
+function edgePoint(edge) {
+    const margin = 18;
+    if (edge === 'top')    return { x: margin + Math.random()*(W-margin*2), y: margin,     angle: Math.PI/2  };
+    if (edge === 'bottom') return { x: margin + Math.random()*(W-margin*2), y: H - margin, angle: -Math.PI/2 };
+    if (edge === 'left')   return { x: margin,     y: margin + Math.random()*(H-margin*2), angle: 0          };
+    /* right */             return { x: W - margin, y: margin + Math.random()*(H-margin*2), angle: Math.PI    };
+}
+
+function updatePortals(head) {
+    if (!portals) return;
+    if (portalCooldown > 0) { portalCooldown--; return; }
+    const PORTAL_R = 14;
+    const checkTeleport = (from, to) => {
+        if (Math.hypot(head.x - from.x, head.y - from.y) < PORTAL_R) {
+            // 传送！将蛇头移到出口
+            const dx = head.x - from.x, dy = head.y - from.y;
+            head.x = to.x + dx * 0.3;
+            head.y = to.y + dy * 0.3;
+            portalCooldown = 40;
+            portalUsed = true;
+            checkAchievements();
+            // 音效
+            try {
+                const ac = getAudioCtx();
+                const o = ac.createOscillator(), g = ac.createGain();
+                o.connect(g); g.connect(ac.destination);
+                o.type = 'sine';
+                o.frequency.setValueAtTime(200, ac.currentTime);
+                o.frequency.exponentialRampToValueAtTime(800, ac.currentTime + 0.2);
+                g.gain.setValueAtTime(0.2, ac.currentTime);
+                g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.3);
+                o.start(); o.stop(ac.currentTime + 0.3);
+            } catch(e){}
+            vibrate([10,5,30]);
+            showFloatingScore(to.x, to.y, 0, false, '🌀 传送！');
+            // 传送后重新生成
+            setTimeout(() => { if (gameRunning) spawnPortals(); }, 8000);
+            portals = null;
+            return true;
+        }
+        return false;
+    };
+    checkTeleport(portals.a, portals.b) || checkTeleport(portals.b, portals.a);
+}
+
+function drawPortals() {
+    if (!portals) return;
+    const t = performance.now() / 1000;
+    [portals.a, portals.b].forEach((p, idx) => {
+        const r = 14;
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        // 旋转光环
+        ctx.rotate(t * (idx === 0 ? 1.5 : -1.5));
+        const colors = idx === 0 ? ['#007aff','#5ac8fa'] : ['#af52de','#ff2d55'];
+        for (let i = 0; i < 8; i++) {
+            const a = (i / 8) * Math.PI * 2;
+            ctx.beginPath();
+            ctx.arc(Math.cos(a)*r, Math.sin(a)*r, 3, 0, Math.PI*2);
+            ctx.fillStyle = colors[i % 2];
+            ctx.globalAlpha = 0.7 + 0.3 * Math.sin(t*3 + i);
+            ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+        // 中心漩涡
+        const g = ctx.createRadialGradient(0,0,0,0,0,r);
+        g.addColorStop(0, colors[0]+'cc');
+        g.addColorStop(0.5, colors[1]+'66');
+        g.addColorStop(1, 'transparent');
+        ctx.fillStyle = g;
+        ctx.shadowColor = colors[0]; ctx.shadowBlur = 16;
+        ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI*2); ctx.fill();
+        ctx.shadowBlur = 0;
+        // 标签
+        ctx.rotate(-t * (idx === 0 ? 1.5 : -1.5)); // un-rotate for text
+        ctx.font = 'bold 8px sans-serif';
+        ctx.fillStyle = '#fff';
+        ctx.textAlign = 'center';
+        ctx.fillText(idx === 0 ? 'IN' : 'OUT', 0, r + 10);
+        ctx.restore();
+    });
+}
+
+// ── AI DIFFICULTY SCALING ─────────────────
+function getAiDifficulty() {
+    // 每100分提升一级，最多5级
+    const level = Math.min(5, Math.floor(score / 100));
+    return {
+        speed:     1.2 + level * 0.28,
+        turnSpeed: 0.055 + level * 0.018,
+        label:     ['😴','🙂','😏','😤','🔥','💀'][level],
+        level,
+    };
+}
+
 // ── INIT GAME ─────────────────────────────
 function initGame(isLoaded) {
     showPage('gamePage');
@@ -782,9 +1170,14 @@ function initGame(isLoaded) {
             score = 0; foodEatenCount = 0;
             scoreEl.textContent = 0;
             aiScoreEl.textContent = 0;
-            currentHeadColor = '#00d4aa';
+            currentHeadColor = currentSkin.headColor;
             invincibleTimer = 0;
             eggFood = null;
+            specialFood = null; magnetActive = 0; freezeActive = 0;
+            eggsEaten = 0; comboCount = 0; magnetUsed = false; freezeUsed = false;
+            poisonSurvived = false; portalUsed = false; sessionAchCount = 0;
+            maxSnakeLength = 60; portals = null; portalCooldown = 0;
+            unlockedAch.clear(); achQueue.length = 0; achShowing = false;
 
             angle = Math.PI; 
             targetAngle = Math.PI;
@@ -797,6 +1190,8 @@ function initGame(isLoaded) {
             }
             spawnFood();
             initAiSnake();
+            setTimeout(() => { if (gameRunning) spawnPortals(); }, 5000);
+            if (gameMode === 'timed') startTimer(); else stopTimer();
             sfxStart();
             autoSaveGame(); // ⚡ 开局即存档一次
         } else {
@@ -862,8 +1257,11 @@ function update(dt) {
         y: head.y + Math.sin(angle) * snakeSpeed * dt,
     };
     snakePoints.unshift(newHead);
-
     trimTrail();
+    if (snakeLength > maxSnakeLength) maxSnakeLength = snakeLength;
+
+    // 传送门检测（在撞墙检测之前）
+    updatePortals(newHead);
 
     // 撞墙检测
     if (newHead.x < SNAKE_RADIUS + 1 || newHead.x > W - SNAKE_RADIUS - 1 ||
@@ -892,21 +1290,24 @@ function update(dt) {
         showFloatingScore(food.x, food.y, pts);
         sfxEat(tier);
         triggerShake(4, 2);
-        if (foodEatenCount % 5 === 0) triggerCombo();
+        if (foodEatenCount % 5 === 0) { comboCount++; triggerCombo(); }
         spawnFood();
         maybeSpawnEgg();
+        checkAchievements();
         autoSaveGame();
     }
 
     // 吃彩蛋食物
     if (eggFood && Math.hypot(newHead.x - eggFood.x, newHead.y - eggFood.y) < SNAKE_RADIUS + FOOD_RADIUS * 1.4) {
         score += 500;
+        eggsEaten++;
         scoreEl.textContent = score;
         snakeLength += 80;
         showFloatingScore(eggFood.x, eggFood.y, 500, true);
         sfxEgg();
         triggerShake(12, 6);
         eggFood = null;
+        checkAchievements();
     }
 
     // 磁铁效果：食物向蛇头漂移
@@ -929,12 +1330,14 @@ function update(dt) {
         else if (Math.hypot(newHead.x - specialFood.x, newHead.y - specialFood.y) < SNAKE_RADIUS + FOOD_RADIUS * 1.2) {
             const fx = specialFood.x, fy = specialFood.y;
             if (specialFood.type === 'magnet') {
-                magnetActive = 300; // 5秒磁铁
+                magnetActive = 300;
+                magnetUsed = true;
                 showFloatingScore(fx, fy, 0, false, '🧲 磁铁！');
                 sfxSpecial('magnet');
                 triggerShake(5, 3);
             } else if (specialFood.type === 'freeze') {
-                freezeActive = 180; // 3秒冻结AI
+                freezeActive = 180;
+                freezeUsed = true;
                 showFloatingScore(fx, fy, 0, false, '❄️ 冰冻！');
                 sfxSpecial('freeze');
                 triggerShake(6, 3);
@@ -943,11 +1346,13 @@ function update(dt) {
                 score = Math.max(0, score - deduct);
                 scoreEl.textContent = score;
                 snakeLength = Math.max(40, snakeLength - 40);
+                poisonSurvived = true;
                 showFloatingScore(fx, fy, 0, false, `💀 -${deduct}`);
                 sfxSpecial('poison');
                 triggerShake(14, 7);
             }
             specialFood = null;
+            checkAchievements();
         }
     }
 
@@ -1016,8 +1421,10 @@ function draw() {
         let color;
         if (isComboMode) {
             color = rainbowColors[Math.floor(i / 4) % rainbowColors.length];
+        } else if (currentSkin.bodyFn && i > 0) {
+            color = currentSkin.bodyFn(1 - dists[i]/totalLen, snakePoints.length, i);
         } else {
-            color = i === 0 ? currentHeadColor : '#00d4aa';
+            color = i === 0 ? currentSkin.headColor : currentSkin.bodyColor;
         }
 
         ctx.globalAlpha = alpha;
@@ -1081,6 +1488,7 @@ function draw() {
     drawFood();
     drawEggFood();
     drawSpecialFood();
+    drawPortals();
     drawFloatingScores();
     // 冰冻状态：全屏蓝色遮罩提示
     if (freezeActive > 0) {
@@ -1102,6 +1510,17 @@ function draw() {
         ctx.textAlign = 'center';
         ctx.fillText(`🧲 磁铁 ${Math.ceil(magnetActive/60)}s`, W/2, 36);
         ctx.restore();
+    }
+    // AI 难度等级标签（右上角）
+    if (gameRunning) {
+        const diff = getAiDifficulty();
+        ctx.save();
+        ctx.font = 'bold 11px sans-serif';
+        ctx.fillStyle = 'rgba(255,107,53,0.7)';
+        ctx.textAlign = 'right';
+        ctx.fillText(`AI ${diff.label} Lv${diff.level+1}`, W - 6, H - 6);
+        ctx.restore();
+        checkAchievements(); // periodic check (beat_ai)
     }
     ctx.restore(); // 结束震动变换
 }
@@ -1352,17 +1771,18 @@ function updateAiSnake(dt) {
         aiSnake.target = rawAngle + drift;
     }
 
-    // 平滑转向
+    // 平滑转向（难度越高转向越灵敏）
+    const aiDiff = getAiDifficulty();
     let diff = aiSnake.target - aiSnake.angle;
     while (diff >  Math.PI) diff -= Math.PI * 2;
     while (diff < -Math.PI) diff += Math.PI * 2;
-    const step = AI_TURN_SPEED * dt;
+    const step = aiDiff.turnSpeed * dt;
     aiSnake.angle += Math.abs(diff) < step ? diff : Math.sign(diff) * step;
 
-    // 移动
+    // 移动（难度越高速度越快）
     const newHead = {
-        x: head.x + Math.cos(aiSnake.angle) * AI_SPEED * dt,
-        y: head.y + Math.sin(aiSnake.angle) * AI_SPEED * dt,
+        x: head.x + Math.cos(aiSnake.angle) * aiDiff.speed * dt,
+        y: head.y + Math.sin(aiSnake.angle) * aiDiff.speed * dt,
     };
     aiSnake.points.unshift(newHead);
 
@@ -1493,6 +1913,57 @@ function drawAiSnake() {
 
 // AI 得分展示在 HUD（可选：右下角小角标）
 
+// ── DRAW SPECIAL FOOD ─────────────────────
+function drawSpecialFood() {
+    if (!specialFood) return;
+    const t = performance.now() / 1000;
+    const life01 = specialFood.life / 300; // fade as it expires
+    const pulse  = 0.88 + 0.12 * Math.sin(t * 4);
+    const r = FOOD_RADIUS * 1.2 * pulse;
+    const fx = specialFood.x, fy = specialFood.y;
+    ctx.save();
+    ctx.globalAlpha = Math.min(1, life01 * 3); // fade out last third
+
+    const cfg = {
+        magnet:  { emoji:'🧲', color1:'#ffd60a', color2:'#ff9500', glow:'#ffcc00' },
+        freeze:  { emoji:'❄️', color1:'#5ac8fa', color2:'#007aff', glow:'#00c7be' },
+        poison:  { emoji:'💀', color1:'#b8f5a0', color2:'#2e7d32', glow:'#34c759' },
+    }[specialFood.type];
+
+    // Glow halo
+    const hg = ctx.createRadialGradient(fx, fy, 0, fx, fy, r * 2.5);
+    hg.addColorStop(0, cfg.glow + '44');
+    hg.addColorStop(1, 'transparent');
+    ctx.fillStyle = hg;
+    ctx.beginPath(); ctx.arc(fx, fy, r * 2.5, 0, Math.PI*2); ctx.fill();
+
+    // Body
+    ctx.shadowColor = cfg.glow; ctx.shadowBlur = 16;
+    const bg = ctx.createRadialGradient(fx-r*0.3, fy-r*0.3, r*0.1, fx, fy, r);
+    bg.addColorStop(0, cfg.color1);
+    bg.addColorStop(1, cfg.color2);
+    ctx.fillStyle = bg;
+    ctx.beginPath(); ctx.arc(fx, fy, r, 0, Math.PI*2); ctx.fill();
+    ctx.shadowBlur = 0;
+
+    // Emoji label
+    ctx.font = `${Math.round(r * 1.1)}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(cfg.emoji, fx, fy);
+
+    // Expiry arc ring
+    ctx.strokeStyle = cfg.glow;
+    ctx.lineWidth = 2.5;
+    ctx.globalAlpha *= 0.5;
+    ctx.beginPath();
+    ctx.arc(fx, fy, r + 5, -Math.PI/2, -Math.PI/2 + Math.PI*2*life01);
+    ctx.stroke();
+
+    ctx.restore();
+}
+
+// ── DRAW EGG FOOD ─────────────────────────
 function drawEggFood() {
     if (!eggFood) return;
     const t = performance.now() / 1000;
@@ -1601,20 +2072,19 @@ function exitGame() {
 }
 
 // ── GAME OVER ─────────────────────────────
-function handleGameOver() {
+function handleGameOver(isTimeout = false) {
     gameRunning = false;
     if (rafId) cancelAnimationFrame(rafId);
+    stopTimer();
     saveScore(currentPlayerName, score);
 
-    canvas.style.borderColor = '#e94560';
-    canvas.style.boxShadow = '0 0 30px rgba(233,69,96,.8)';
+    canvas.style.borderColor = isTimeout ? '#ffcc00' : '#e94560';
+    canvas.style.boxShadow   = isTimeout ? '0 0 30px rgba(255,204,0,.8)' : '0 0 30px rgba(233,69,96,.8)';
     setTimeout(() => {
         canvas.style.borderColor = '';
         canvas.style.boxShadow = '';
-        alert(`💥 游戏结束！\n${currentPlayerName} 得了 ${score} 分`);
-        showPage('menuPage');
-        updateLeaderboardUI();
-    }, 300);
+        showStatsModal(isTimeout);
+    }, 350);
 }
 
 // ── SAVE / LOAD ───────────────────────────
